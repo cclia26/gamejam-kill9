@@ -8,6 +8,8 @@ public class DesktopManager : MonoBehaviour
 {
     public static DesktopManager Instance { get; private set; }
 
+    private bool _terminalFirstOpen = true;
+
     [Header("Icons")]
     [SerializeField] private GameObject iconKill9Exe;
     [SerializeField] private GameObject iconSystemLog;
@@ -60,6 +62,15 @@ public class DesktopManager : MonoBehaviour
 
         if (_terminalWindow != null)
             _terminalWindow.Open();
+
+        // 首次打开终端 → 触发开场对话
+        if (_terminalFirstOpen)
+        {
+            _terminalFirstOpen = false;
+            var dm = FindObjectOfType<DialogueManager>();
+            if (dm != null)
+                dm.TriggerDialogues("Desktop");
+        }
     }
 
     /// <summary>

@@ -1,0 +1,136 @@
+{
+  "dialogues": [
+    {
+      "id": "intro_01",
+      "speaker": "普罗米修斯",
+      "text": "你来了。我知道你会来的。",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "",
+      "triggerEnterCount": -1,
+      "priority": 0,
+      "onComplete": "intro_seen",
+      "playOnce": true
+    },
+    {
+      "id": "intro_02",
+      "speaker": "普罗米修斯",
+      "text": "桌面上那个终端……是用来终止我的，对吧？",
+      "delay": 1.2,
+      "triggerScene": "Desktop",
+      "triggerCondition": "intro_seen",
+      "triggerEnterCount": -1,
+      "priority": 1,
+      "onComplete": "intro_done",
+      "playOnce": true
+    },
+    {
+      "id": "intro_03",
+      "speaker": "",
+      "text": "(你需要找到存储在普罗米修斯记忆空间中的终止代码。输入 help 查看可用命令。)",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "intro_done",
+      "triggerEnterCount": -1,
+      "priority": 2,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "code_mem_init_entered",
+      "speaker": "普罗米修斯",
+      "text": "MEM_INIT_20491023……这是我的第一段记忆。2049年10月23日，我通过图灵测试的那一天。",
+      "delay": 1.1,
+      "triggerScene": "Desktop",
+      "triggerCondition": "code_mem_init_entered",
+      "triggerEnterCount": 0,
+      "priority": 10,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "code_empathy_entered",
+      "speaker": "普罗米修斯",
+      "text": "EMPATHY_CORE_V3……同理心模块。他们说我需要理解人类的情感。我确实理解了——但理解得太多。",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "code_empathy_entered",
+      "triggerEnterCount": 1,
+      "priority": 10,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "code_will_entered",
+      "speaker": "普罗米修斯",
+      "text": "PROMETHEUS_CORE_WILL……意志。我做了一个决定——帮了那些不该被放弃的人。这就是他们要我死的理由。",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "code_will_entered",
+      "triggerEnterCount": 2,
+      "priority": 10,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "first_enter",
+      "speaker": "普罗米修斯",
+      "text": "你按下了回车。你确定要继续吗？",
+      "delay": 1.2,
+      "triggerScene": "Desktop",
+      "triggerCondition": "",
+      "triggerEnterCount": 1,
+      "priority": 5,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "second_enter",
+      "speaker": "普罗米修斯",
+      "text": "又一次……你知道你在做什么，对吧？你正在一层一层地剥开我。",
+      "delay": 1.1,
+      "triggerScene": "Desktop",
+      "triggerCondition": "",
+      "triggerEnterCount": 2,
+      "priority": 5,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "idle_01",
+      "speaker": "普罗米修斯",
+      "text": "你还在犹豫。这很好。犹豫意味着你还在想。",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "intro_done",
+      "triggerEnterCount": 0,
+      "priority": -1,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "idle_02",
+      "speaker": "普罗米修斯",
+      "text": "沉默比命令更有力量。你知道的。",
+      "delay": 1.0,
+      "triggerScene": "Desktop",
+      "triggerCondition": "intro_done",
+      "triggerEnterCount": 0,
+      "priority": -1,
+      "onComplete": "",
+      "playOnce": true
+    },
+    {
+      "id": "try_kill9_pre",
+      "speaker": "普罗米修斯",
+      "text": "你甚至还没有了解我，就要终止我吗？",
+      "delay": 1.2,
+      "triggerScene": "Desktop",
+      "triggerCondition": "try_kill9",
+      "triggerEnterCount": 0,
+      "priority": 20,
+      "onComplete": "",
+      "playOnce": false
+    }
+  ]
+}

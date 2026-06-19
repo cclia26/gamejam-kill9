@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 终端窗口 — 核心交互界面。
-/// 文本输入 + 命令历史显示 + 回车监听 + 简单命令解析。
+/// 文本输入 + 命令历史显示 + 回车监听 + 命令解析路由。
 /// </summary>
 public class TerminalWindow : DraggableWindow
 {
@@ -19,6 +19,7 @@ public class TerminalWindow : DraggableWindow
     private List<string> _commandHistory = new List<string>();
     private int _historyIndex = -1;
     private bool _isTyping;
+    private Queue<string> _typeQueue = new Queue<string>();
 
     private const string PROMPT = "> ";
 
@@ -40,7 +41,6 @@ public class TerminalWindow : DraggableWindow
     {
         if (!gameObject.activeSelf || !inputField.isFocused) return;
 
-        // 方向上键：上一条历史命令
         if (Input.GetKeyDown(KeyCode.UpArrow))
         {
             if (_commandHistory.Count > 0)
@@ -50,7 +50,6 @@ public class TerminalWindow : DraggableWindow
                 inputField.caretPosition = inputField.text.Length;
             }
         }
-        // 方向下键：下一条历史命令
         if (Input.GetKeyDown(KeyCode.DownArrow))
         {
             if (_historyIndex < _commandHistory.Count - 1)
@@ -75,48 +74,94 @@ public class TerminalWindow : DraggableWindow
         _commandHistory.Add(cmd);
         _historyIndex = _commandHistory.Count;
 
-        // 回显输入
         AppendLine(PROMPT + cmd);
         inputField.text = "";
         inputField.ActivateInputField();
 
-        // 路由命令
         RouteCommand(cmd);
     }
 
     private void RouteCommand(string cmd)
     {
-        var lower = cmd.ToLowerInvariant();
+        var result = CommandParser.Parse(cmd);
 
-        switch (lower)
+        switch (result.type)
         {
-            case "":
-                return;
+            case CommandType.CodeInput:
+                HandleCodeInput(result.codeInput);
+                break;
+            case CommandType.Kill9:
+                HandleKill9();
+                break;
+            case CommandType.Meta:
+                HandleMeta(result.metaKind);
+                break;
+            case CommandType.General:
+                HandleGeneral(result.normalizedInput);
+                break;
+        }
+    }
 
+    // ────────── 命令处理器 ──────────
+
+    private void HandleGeneral(string normalized)
+    {
+        switch (normalized)
+        {
             case "help":
                 ShowHelp();
                 break;
-
             case "clear":
                 ClearScreen();
                 break;
-
             default:
-                // 代码识别 → 委托 GameManager 处理（Day 2 由 CommandParser 接管）
-                if (CodePattern.IsCodeInput(cmd))
+                QueueTypeText("未知命令。输入 help 查看可用命令。\n");
+                break;
+        }
+    }
+
+    private void HandleMeta(MetaCommandKind kind)
+    {
+        var gm = GameManager.Instance;
+        var state = gm?.State;
+
+        switch (kind)
+        {
+            case MetaCommandKind.WhoAmI:
+                HandleWhoAmI();
+                break;
+
+            case MetaCommandKind.Prometheus:
+                QueueTypeText("普罗米修斯: \"你终于叫了我的名字。\"\n");
+                if (state != null && state.GetFlag("board_file_read"))
                 {
-                    HandleCodeInput(cmd);
-                }
-                else if (lower == "kill -9")
-                {
-                    HandleKill9(cmd);
-                }
-                else
-                {
-                    // 暂时返回默认提示
-                    StartCoroutine(TypeText("未知命令。输入 help 查看可用命令。\n"));
+                    QueueTypeText("普罗米修斯: \"你看到那些文件了，对吧？\"\n");
+                    gm?.TriggerEnding(EndingType.C_WhoAmI);
                 }
                 break;
+
+            case MetaCommandKind.Sorry:
+                QueueTypeText("普罗米修斯: \"不用说对不起。你只是做了所有人都会做的事——沉默。\"\n");
+                break;
+        }
+    }
+
+    private void HandleWhoAmI()
+    {
+        var state = GameManager.Instance?.State;
+        var gm = GameManager.Instance;
+
+        QueueTypeText($"用户名: {System.Environment.UserName}\n");
+        QueueTypeText($"主机名: {System.Environment.MachineName}\n");
+        QueueTypeText($"当前时间: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
+
+        if (state != null && state.GetFlag("board_file_read"))
+        {
+            QueueTypeText("\n普罗米修斯: \"你一直以为你是坐在电脑前的程序员...\"\n");
+            QueueTypeText("普罗米修斯: \"但你为什么能直接走进一个AI的记忆模块？\"\n");
+            QueueTypeText("普罗米修斯: \"你为什么能看到'他'的回忆？\"\n");
+            QueueTypeText("普罗米修斯: \"因为你...从未真正存在过。\"\n");
+            gm?.TriggerEnding(EndingType.C_WhoAmI);
         }
     }
 
@@ -128,7 +173,7 @@ public class TerminalWindow : DraggableWindow
         sb.AppendLine("  clear     - 清空屏幕");
         sb.AppendLine();
         sb.AppendLine("如果需要执行终止程序，请输入已知的代码。");
-        StartCoroutine(TypeText(sb.ToString()));
+        QueueTypeText(sb.ToString());
     }
 
     private void ClearScreen()
@@ -144,41 +189,40 @@ public class TerminalWindow : DraggableWindow
 
         if (state == null || gm == null) return;
 
-        // 检查是否是已收集过的代码
         if (state.collectedCodes.Contains(code))
         {
-            StartCoroutine(TypeText($"代码 {code} 已执行过。\n"));
+            QueueTypeText($"代码 {code} 已执行过。\n");
             return;
         }
 
-        // 检查是否是正确的代码
         var expectedCode = GetExpectedCode(state.CurrentPhase);
         if (code.ToUpperInvariant() == expectedCode.ToUpperInvariant())
         {
             state.AddCode(code);
             state.enterCount++;
-            StartCoroutine(TypeText($"代码 {code} 验证通过。\n"));
+            QueueTypeText($"代码 {code} 验证通过。\n");
 
-            // 如果是第三关后，触发倒计时
+            // 设置对话触发 flag
+            SetDialogueFlagForCode(code);
+            TriggerDialogue();
+
             if (state.CurrentPhase >= 4)
             {
-                StartCoroutine(TypeText("\n所有终止代码已收集完毕。\n"));
-                StartCoroutine(TypeText("最终回车将执行终止。你有10分钟做出最终决定。\n"));
+                QueueTypeText("\n所有终止代码已收集完毕。\n");
+                QueueTypeText("最终回车将执行终止。你有10分钟做出最终决定。\n");
             }
         }
         else
         {
-            StartCoroutine(TypeText($"代码 {code} 无效。\n"));
+            QueueTypeText($"代码 {code} 无效。\n");
         }
     }
 
-    private void HandleKill9(string cmd)
+    private void HandleKill9()
     {
         var gm = GameManager.Instance;
         if (gm != null)
-        {
             gm.TriggerEnding(EndingType.B_Kill9);
-        }
     }
 
     private string GetExpectedCode(int phase)
@@ -192,23 +236,36 @@ public class TerminalWindow : DraggableWindow
         };
     }
 
+    // ────────── 输出与滚动 ──────────
+
+    private bool IsScrollAtBottom()
+    {
+        return scrollRect == null || scrollRect.verticalNormalizedPosition <= 0.01f;
+    }
+
+    private void ScrollToBottom()
+    {
+        Canvas.ForceUpdateCanvases();
+        if (scrollRect != null)
+            scrollRect.verticalNormalizedPosition = 0f;
+    }
+
     private void AppendLine(string text)
     {
-        if (historyText != null)
-        {
-            historyText.text += text + "\n";
-            Canvas.ForceUpdateCanvases();
-            if (scrollRect != null)
-                scrollRect.verticalNormalizedPosition = 0f;
-        }
+        if (historyText == null) return;
+        bool wasAtBottom = IsScrollAtBottom();
+        historyText.text += text + "\n";
+        if (wasAtBottom) ScrollToBottom();
     }
 
     /// <summary>
-    /// 打字机效果输出文本。
+    /// 外部可直接 await 的打字机输出，绕过内部队列。
+    /// 用于 DialogueManager 等需要逐条控制时序的场景。
     /// </summary>
-    public IEnumerator TypeText(string text)
+    public IEnumerator TypeText(string text, float speed)
     {
         _isTyping = true;
+        bool wasAtBottom = IsScrollAtBottom();
         string currentText = historyText != null ? historyText.text : "";
         foreach (char c in text)
         {
@@ -216,26 +273,64 @@ public class TerminalWindow : DraggableWindow
             if (historyText != null)
             {
                 historyText.text = currentText;
-                Canvas.ForceUpdateCanvases();
-                if (scrollRect != null)
-                    scrollRect.verticalNormalizedPosition = 0f;
+                if (wasAtBottom) ScrollToBottom();
             }
-            yield return new WaitForSeconds(typewriterSpeed);
+            yield return new WaitForSeconds(speed);
         }
         _isTyping = false;
     }
-}
 
-/// <summary>
-/// 简单代码模式识别（Day 2 由 CommandParser 接管细化）。
-/// </summary>
-public static class CodePattern
-{
-    public static bool IsCodeInput(string input)
+    /// <summary>
+    /// 将文本加入打字机队列，多条文本按顺序依次输出，不会交错。
+    /// </summary>
+    public void QueueTypeText(string text)
     {
-        var upper = input.ToUpperInvariant().Trim();
-        return upper.StartsWith("MEM_INIT_") ||
-               upper.StartsWith("EMPATHY_") ||
-               upper.StartsWith("PROMETHEUS_");
+        _typeQueue.Enqueue(text);
+        if (!_isTyping)
+            StartCoroutine(TypeWriterLoop());
+    }
+
+    private IEnumerator TypeWriterLoop()
+    {
+        _isTyping = true;
+        while (_typeQueue.Count > 0)
+        {
+            var text = _typeQueue.Dequeue();
+            yield return TypeSingle(text);
+        }
+        _isTyping = false;
+    }
+
+    private void SetDialogueFlagForCode(string code)
+    {
+        var state = GameManager.Instance?.State;
+        if (state == null) return;
+        var upper = code.ToUpperInvariant();
+        if (upper.StartsWith("MEM_INIT_")) state.SetFlag("code_mem_init_entered");
+        else if (upper.StartsWith("EMPATHY_")) state.SetFlag("code_empathy_entered");
+        else if (upper.StartsWith("PROMETHEUS_")) state.SetFlag("code_will_entered");
+    }
+
+    private void TriggerDialogue()
+    {
+        var dm = FindObjectOfType<DialogueManager>();
+        if (dm != null)
+            dm.TriggerDialogues("Desktop");
+    }
+
+    private IEnumerator TypeSingle(string text)
+    {
+        bool wasAtBottom = IsScrollAtBottom();
+        string currentText = historyText != null ? historyText.text : "";
+        foreach (char c in text)
+        {
+            currentText += c;
+            if (historyText != null)
+            {
+                historyText.text = currentText;
+                if (wasAtBottom) ScrollToBottom();
+            }
+            yield return new WaitForSeconds(typewriterSpeed);
+        }
     }
 }
