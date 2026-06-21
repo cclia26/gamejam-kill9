@@ -203,7 +203,16 @@ public class TerminalWindow : DraggableWindow
                 break;
 
             case MetaCommandKind.Sorry:
-                QueueTypeText("普罗米修斯: \"不用说对不起。你只是做了所有人都会做的事——沉默。\"\n");
+                // 第一次聊天前说 sorry → 触发特殊对话
+                if (state != null && !state.GetFlag("chat_started"))
+                {
+                    state.SetFlag("player_said_sorry_early");
+                    TriggerDialogue();
+                }
+                else
+                {
+                    QueueTypeText("普罗米修斯: \"不用说对不起。你只是做了所有人都会做的事——沉默。\"\n");
+                }
                 break;
         }
     }
@@ -234,7 +243,7 @@ public class TerminalWindow : DraggableWindow
         sb.AppendLine("  help      - 显示此帮助");
         sb.AppendLine("  clear     - 清空屏幕");
         sb.AppendLine();
-        sb.AppendLine("点击桌面上的\"核心监控.exe\"进入记忆空间。");
+        sb.AppendLine("点击桌面上的\"核心.exe\"进入记忆空间。");
         QueueTypeText(sb.ToString());
     }
 
@@ -249,7 +258,7 @@ public class TerminalWindow : DraggableWindow
     /// </summary>
     private void HandleCodeInput(string code)
     {
-        QueueTypeText($"代码 {code} 需要通过\"核心监控.exe\"进入关卡获取。\n");
+        QueueTypeText($"代码 {code} 需要通过\"核心.exe\"进入关卡获取。\n");
     }
 
     private void HandleKill9()

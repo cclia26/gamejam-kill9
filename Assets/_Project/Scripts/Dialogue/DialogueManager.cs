@@ -98,7 +98,7 @@ public class DialogueManager : MonoBehaviour
 
         _isShowing = false;
 
-        // 本轮对话全部结束 → 解锁核心监控
+        // 本轮对话全部结束 → 解锁核心
         DesktopManager.Instance?.UnlockCoreMonitor();
     }
 
@@ -106,12 +106,8 @@ public class DialogueManager : MonoBehaviour
     {
         var state = GameManager.Instance?.State;
 
-        // 构建显示文本
-        string displayText;
-        if (string.IsNullOrEmpty(d.speaker))
-            displayText = d.text;
-        else
-            displayText = $"{d.speaker}: \"{d.text}\"";
+        // 直接输出文本，不添加说话者前缀
+        string displayText = d.text;
 
         float speed = 0.04f * d.delay;
 

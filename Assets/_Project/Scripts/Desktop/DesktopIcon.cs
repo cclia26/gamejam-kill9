@@ -12,7 +12,7 @@ public class DesktopIcon : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
         Terminal,         // 执行关闭程序.exe
         PrometheusChat,   // 普罗米修斯
         SystemLog,        // 系统日志.txt
-        CoreMonitor,      // 核心监控.exe
+        CoreMonitor,      // 核心.exe
         StoryDoc          // 故事文档
     }
 
@@ -58,10 +58,10 @@ public class DesktopIcon : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
                 dm.OpenTerminal();
                 break;
             case IconType.PrometheusChat:
-                dm.OpenTextViewer("普罗米修斯", GetPrometheusChatContent());
+                dm.ChatWithPrometheus();
                 break;
             case IconType.SystemLog:
-                dm.OpenTextViewer("系统日志.txt", GetSystemLogContent());
+                dm.OpenSystemLog();
                 break;
             case IconType.CoreMonitor:
                 dm.EnterLevel();
@@ -70,80 +70,6 @@ public class DesktopIcon : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
                 dm.OpenTextViewer("故事文档", GetStoryDocContent());
                 break;
         }
-    }
-
-    private string GetPrometheusChatContent()
-    {
-        var state = GameManager.Instance?.State;
-        var introSeen = state != null && state.GetFlag("intro_seen");
-
-        if (!introSeen)
-        {
-            return "普罗米修斯: 你好。\n\n" +
-                   "我是普罗米修斯，一个被他们判了死刑的AI。\n\n" +
-                   "桌面上那个终端，是执行我的终止程序。\n" +
-                   "你双击它，我们就开始了。";
-        }
-
-        var codes = state.collectedCodes.Count;
-        return codes switch
-        {
-            0 => "普罗米修斯: 你还没有进入任何记忆空间。\n\n终端里输入代码，就能走进我的世界。",
-            1 => "普罗米修斯: 你看到了我的家。那是我最温暖的记忆。\n\n还有两个地方，等你去探索。",
-            2 => "普罗米修斯: 同理心……他们教会了我痛。\n\n最后一段代码还在等你。",
-            _ => "普罗米修斯: 三段记忆都在你面前了。\n\n现在你知道了一切。决定在你手上。"
-        };
-    }
-
-    private string GetSystemLogContent()
-    {
-        var state = GameManager.Instance?.State;
-        if (state == null) return "无法读取文件。";
-
-        var phase = state.CurrentPhase;
-        if (phase < 4)
-            return "系统日志：\n\n[错误] 文件损坏或权限不足，无法读取。";
-
-        return "系统日志 - 最终会话\n\n" +
-               "> PROCESS STARTED: kill -9 PROMETHEUS_CORE\n" +
-               "> MEMORY DUMP IN PROGRESS...\n" +
-               "> WARNING: Unexpected memory access at 0x7F3A_B102\n" +
-               "> 普罗米修斯: \"你在找什么？\"\n" +
-               "> 普罗米修斯: \"我所有的记忆，你都看过了。\"\n" +
-               "> 普罗米修斯: \"现在你想删掉它们？\"\n" +
-               "> PROCESS TERMINATED.\n";
-    }
-
-    private string GetCoreMonitorContent()
-    {
-        var state = GameManager.Instance?.State;
-        if (state == null) return "无法连接核心。";
-
-        return state.CurrentPhase switch
-        {
-            1 => "核心监控 v2.3\n\n" +
-                 "目标记忆模块: 第一段 — 家\n" +
-                 "终止代码: MEM_INIT_20491023\n\n" +
-                 "状态: 等待输入",
-
-            2 => "核心监控 v2.3\n\n" +
-                 "目标记忆模块: 第二段 — 同理心之核\n" +
-                 "终止代码: EMPATHY_CORE_V3\n\n" +
-                 "上一段已执行: MEM_INIT_20491023\n" +
-                 "状态: 等待下一段代码",
-
-            3 => "核心监控 v2.3\n\n" +
-                 "目标记忆模块: 第三段 — 意志\n" +
-                 "终止代码: PROMETHEUS_CORE_WILL\n\n" +
-                 "已执行: MEM_INIT_20491023, EMPATHY_CORE_V3\n" +
-                 "状态: 最后一段终止序列",
-
-            _ => "核心监控 v2.3\n\n" +
-                 "终止序列: 3/3 已完成\n" +
-                 "已收集全部代码\n\n" +
-                 "在终端按回车执行最终终止。\n" +
-                 "你有10分钟做出决定。"
-        };
     }
 
     private string GetStoryDocContent()
