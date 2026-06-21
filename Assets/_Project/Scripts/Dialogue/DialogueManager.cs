@@ -81,6 +81,7 @@ public class DialogueManager : MonoBehaviour
             if (state != null)
             {
                 var more = _allDialogues
+                    .Where(line => line.playOnce) // 重扫只匹配一次性对话，playOnce=false 的靠外部触发
                     .Where(line => !_playedIds.Contains(line.id))
                     .Where(line => line.triggerScene == d.triggerScene || string.IsNullOrEmpty(line.triggerScene))
                     .Where(line => string.IsNullOrEmpty(line.triggerCondition) || state.GetFlag(line.triggerCondition))

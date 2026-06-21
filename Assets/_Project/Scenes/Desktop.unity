@@ -1277,7 +1277,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.5529412}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1555,7 +1555,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cfd3002de972cf4589bf2b1baf5fb9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  iconType: 1
+  iconType: 2
   highlightImage: {fileID: 1847378068}
   doubleClickThreshold: 0.4
 --- !u!1 &1001129608
@@ -2407,7 +2407,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u666E\u7F57\u7C73\u4FEE\u65AF"
+  m_text: "\u666E\u7F57\u7C73\u4FEE\u65AF.exe"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 523ea7a9754627d458baf045087157ec, type: 2}
   m_sharedMaterial: {fileID: 2261906283473203057, guid: 523ea7a9754627d458baf045087157ec, type: 2}
@@ -2664,9 +2664,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   portraitRect: {fileID: 645766578}
   portraitGroup: {fileID: 645766579}
-  edgePadding: 8
+  leftMargin: 8
+  rightMargin: 26
   portraitY: 70
-  rightEdgeExtra: 6
   bubblePanel: {fileID: 832063305}
   contentText: {fileID: 1189987757}
   bubbleGroup: {fileID: 832063307}

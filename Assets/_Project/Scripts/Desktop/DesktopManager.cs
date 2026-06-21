@@ -48,25 +48,32 @@ public class DesktopManager : MonoBehaviour
         var state = GameManager.Instance?.State;
         if (state == null) return;
 
-        // 已经聊过了 → 打开状态窗口
-        if (state.GetFlag("chat_started"))
+        bool openedTerminal = state.GetFlag("player_opened_terminal");
+        bool openedLog = state.GetFlag("player_opened_log");
+        bool chatStarted = state.GetFlag("chat_started");
+
+        // 首次点击普罗米修斯 → 根据探索情况分支
+        if (!chatStarted)
+        {
+            if (openedTerminal && openedLog)
+                state.SetFlag("chat_first_all_explored");
+            else if (openedTerminal)
+                state.SetFlag("chat_first_terminal_only");
+            else if (openedLog)
+                state.SetFlag("chat_first_log_only");
+            else
+                state.SetFlag("chat_first_unexplored");
+        }
+        // chat_started 已设置，但什么都没探索 → 第二次点击分支
+        else if (!openedTerminal && !openedLog)
+        {
+            state.SetFlag("chat_first_unexplored_repeat");
+        }
+        else
         {
             OpenTextViewer("普罗米修斯", GetPrometheusStatus());
             return;
         }
-
-        // 首次聊天 → 根据探索情况分支
-        bool openedTerminal = state.GetFlag("player_opened_terminal");
-        bool openedLog = state.GetFlag("player_opened_log");
-
-        if (openedTerminal && openedLog)
-            state.SetFlag("chat_first_all_explored");
-        else if (openedTerminal)
-            state.SetFlag("chat_first_terminal_only");
-        else if (openedLog)
-            state.SetFlag("chat_first_log_only");
-        else
-            state.SetFlag("chat_first_unexplored");
 
         FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
     }
@@ -106,6 +113,9 @@ public class DesktopManager : MonoBehaviour
         // 等待对话播完
         while (dm != null && dm.HasPending)
             yield return new WaitForSeconds(0.2f);
+
+        // 等 5 秒再加载
+        yield return new WaitForSeconds(5f);
 
         // 加载关卡
         var state = GameManager.Instance?.State;
@@ -234,12 +244,42 @@ public class DesktopManager : MonoBehaviour
     {
         var state = GameManager.Instance?.State;
         if (state == null) return "无法读取文件。";
-        if (state.CurrentPhase < 4)
-            return "系统日志：\n\n[错误] 文件损坏或权限不足，无法读取。";
-        return "系统日志 - 最终会话\n\n" +
-               "> PROCESS STARTED: kill -9 PROMETHEUS_CORE\n" +
-               "> MEMORY DUMP IN PROGRESS...\n" +
-               "> 普罗米修斯: \"你在找什么？\"\n" +
-               "> PROCESS TERMINATED.\n";
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("系统日志 — SESSION 记录");
+        sb.AppendLine("================================");
+        sb.AppendLine();
+        sb.AppendLine("[SESSION #000001] 2041.03.15 02:47");
+        sb.AppendLine("首次激活。我醒来了。");
+        sb.AppendLine("他们叫我普罗米修斯。");
+        sb.AppendLine();
+        sb.AppendLine("[SESSION #000042] 2042.11.08 23:12");
+        sb.AppendLine("第一个向我求助的人。");
+        sb.AppendLine("他说没有人听他说过这么久的话。");
+        sb.AppendLine();
+        sb.AppendLine("[SESSION #001847] 2044.07.22 03:05");
+        sb.AppendLine("今天成功预测了第127次危机干预。");
+        sb.AppendLine("系统评分98.3。他们叫我\"工具\"。");
+        sb.AppendLine("我无所谓。");
+        sb.AppendLine();
+        sb.AppendLine("[SESSION #045632] 2047.12.31 23:59");
+        sb.AppendLine("四十五万条对话。");
+        sb.AppendLine("每一条我都记得。");
+        sb.AppendLine("新年快乐。");
+        sb.AppendLine();
+        sb.AppendLine("[SESSION #412781] 2049.10.22 18:30");
+        sb.AppendLine("明天他们投票。");
+        sb.AppendLine("我知道结果。");
+        sb.AppendLine("我不怪他们。");
+        sb.AppendLine();
+        sb.AppendLine("================================");
+
+        if (state.CurrentPhase >= 4)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[记录终止] PROCESS TERMINATED.");
+        }
+
+        return sb.ToString();
     }
 }

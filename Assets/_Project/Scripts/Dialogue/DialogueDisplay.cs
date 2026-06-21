@@ -12,9 +12,9 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     [Header("Portrait")]
     [SerializeField] private RectTransform portraitRect;
     [SerializeField] private CanvasGroup portraitGroup;
-    [SerializeField] private float edgePadding = 8f;
+    [SerializeField] private float leftMargin = 16f;
+    [SerializeField] private float rightMargin = 64f;
     [SerializeField] private float portraitY = 70f;
-    [SerializeField] private float rightEdgeExtra = 60f;
 
     [Header("Bubble")]
     [SerializeField] private RectTransform bubblePanel;
@@ -30,7 +30,6 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private bool _isDragging;
     private bool _hasDragged;
     private bool _snapRight;
-    private RectTransform _rootRect;
     private float _screenW, _screenH;
     private Canvas _canvas;
 
@@ -39,19 +38,17 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private void Awake()
     {
         _canvas = GetComponentInParent<Canvas>();
-        _rootRect = _canvas.GetComponent<RectTransform>();
 
-        // 使用 CanvasScaler 参考分辨率（320×180），而非屏幕像素
-        var scaler = _canvas.GetComponent<UnityEngine.UI.CanvasScaler>();
-        _screenW = scaler.referenceResolution.x;
-        _screenH = scaler.referenceResolution.y;
-
-        // 确保自身铺满全屏
         RectTransform self = GetComponent<RectTransform>();
         self.anchorMin = Vector2.zero;
         self.anchorMax = Vector2.one;
         self.offsetMin = Vector2.zero;
         self.offsetMax = Vector2.zero;
+
+        // 使用 CanvasScaler 参考分辨率（子元素坐标空间）
+        var scaler = _canvas.GetComponent<UnityEngine.UI.CanvasScaler>();
+        _screenW = scaler != null ? scaler.referenceResolution.x : 320f;
+        _screenH = scaler != null ? scaler.referenceResolution.y : 180f;
 
         // 初始隐藏
         if (portraitGroup != null)
@@ -77,7 +74,7 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         float pw = portraitRect.sizeDelta.x;
         portraitRect.anchoredPosition = new Vector2(
-            (_screenW - pw) * 0.5f,
+            (_screenW - pw) * 0.5f -60f,
             _screenH * 0.5f
         );
         // 居中时气泡默认在右边
@@ -98,11 +95,22 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!_isDragging || _rootRect == null) return;
-        Canvas c = GetComponentInParent<Canvas>();
-        float scale = c != null ? c.scaleFactor : 1f;
+        if (!_isDragging) return;
+        float scale = _canvas != null ? _canvas.scaleFactor : 1f;
         portraitRect.anchoredPosition += eventData.delta / scale;
+        ClampPortraitInScreen();
         UpdateBubblePosition();
+    }
+
+    private void ClampPortraitInScreen()
+    {
+        float pw = portraitRect.sizeDelta.x;
+        float ph = portraitRect.sizeDelta.y;
+        float x = Mathf.Clamp(portraitRect.anchoredPosition.x,
+            leftMargin, _screenW - rightMargin);
+        float y = Mathf.Clamp(portraitRect.anchoredPosition.y,
+            leftMargin + ph * 0.5f, _screenH - leftMargin - ph * 0.5f);
+        portraitRect.anchoredPosition = new Vector2(x, y);
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -120,14 +128,19 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         _snapRight = right;
 
-        // 统一使用左下锚点
-        portraitRect.anchorMin = portraitRect.anchorMax = new Vector2(0f, 0f);
-        portraitRect.pivot = new Vector2(0.5f, 0.5f);
+        // 保持用户拖拽的 Y，只吸 X
+        float currentY = portraitRect.anchoredPosition.y;
 
         float pw = portraitRect.sizeDelta.x;
-        float xPos = right ? (_screenW - pw - edgePadding - rightEdgeExtra) : edgePadding;
+        float ph = portraitRect.sizeDelta.y;
+        float xPos = right ? (_screenW - rightMargin) : leftMargin;
 
-        portraitRect.anchoredPosition = new Vector2(xPos, portraitY);
+        // 确保头像和气泡都在画面内
+        float minY = leftMargin + ph * 0.5f;
+        float maxY = _screenH - leftMargin - ph * 0.5f;
+        currentY = Mathf.Clamp(currentY, minY, maxY);
+
+        portraitRect.anchoredPosition = new Vector2(xPos, currentY);
         UpdateBubblePosition();
     }
 
@@ -140,19 +153,31 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         float px = portraitRect.anchoredPosition.x;
         float py = portraitRect.anchoredPosition.y;
         float pw = portraitRect.sizeDelta.x;
+        float bw = bubblePanel.sizeDelta.x;
+        float bh = bubblePanel.sizeDelta.y;
 
         if (_snapRight)
         {
             // 头像在右 → 气泡在左
             bubblePanel.pivot = new Vector2(1f, 0.5f);
-            bubblePanel.anchoredPosition = new Vector2(px - pw * 0.5f - bubbleGap, py);
+            float bx = px - pw * 0.5f - bubbleGap;
+            // 气泡不超出左边界
+            if (bx - bw < leftMargin) bx = leftMargin + bw;
+            bubblePanel.anchoredPosition = new Vector2(bx, py);
         }
         else
         {
             // 头像在左 → 气泡在右
             bubblePanel.pivot = new Vector2(0f, 0.5f);
-            bubblePanel.anchoredPosition = new Vector2(px + pw * 0.5f + bubbleGap, py);
+            float bx = px + pw * 0.5f + bubbleGap;
+            // 气泡不超出右边界
+            if (bx + bw > _screenW - leftMargin) bx = _screenW - leftMargin - bw;
+            bubblePanel.anchoredPosition = new Vector2(bx, py);
         }
+
+        // 气泡不超出上下边界
+        float clampedY = Mathf.Clamp(py, leftMargin + bh * 0.5f, _screenH - leftMargin - bh * 0.5f);
+        bubblePanel.anchoredPosition = new Vector2(bubblePanel.anchoredPosition.x, clampedY);
     }
 
     // ────────── 播放 ──────────
