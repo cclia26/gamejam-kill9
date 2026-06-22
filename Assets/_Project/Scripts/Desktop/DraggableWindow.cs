@@ -11,6 +11,8 @@ public class DraggableWindow : MonoBehaviour, IBeginDragHandler, IDragHandler
     [SerializeField] protected Button closeButton;
     protected Canvas canvas;
 
+    public System.Action onClosed;
+
     protected virtual void Awake()
     {
         canvas = GetComponentInParent<Canvas>();
@@ -27,6 +29,7 @@ public class DraggableWindow : MonoBehaviour, IBeginDragHandler, IDragHandler
     public virtual void Close()
     {
         gameObject.SetActive(false);
+        onClosed?.Invoke();
     }
 
     public void OnBeginDrag(PointerEventData eventData) { }

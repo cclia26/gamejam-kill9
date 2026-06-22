@@ -112,6 +112,9 @@ public class DialogueManager : MonoBehaviour
 
         float speed = 0.04f * d.delay;
 
+        // 运行时替换：系统时间占位符 → 真实时间
+        displayText = ReplaceTimePlaceholders(displayText);
+
         if (display != null)
         {
             yield return display.PlayText(displayText, speed);
@@ -128,6 +131,16 @@ public class DialogueManager : MonoBehaviour
             state.SetFlag(d.onComplete);
             DesktopManager.Instance?.RefreshIconVisibility();
         }
+    }
+
+    private string ReplaceTimePlaceholders(string text)
+    {
+        // "20xx年xx月xx日，晚上xx:xx" → 真实系统时间
+        var now = System.DateTime.Now;
+        string dateStr = now.ToString("yyyy年MM月dd日，HH:mm");
+        text = text.Replace("20xx年xx月xx日，晚上xx:xx", dateStr);
+
+        return text;
     }
 
     private DialogueDisplay FindActiveDisplay()

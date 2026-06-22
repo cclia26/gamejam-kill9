@@ -51,12 +51,23 @@ public class DesktopManager : MonoBehaviour
         bool openedTerminal = state.GetFlag("player_opened_terminal");
         bool openedLog = state.GetFlag("player_opened_log");
         bool chatStarted = state.GetFlag("chat_started");
+        bool introDone = state.GetFlag("chat_intro_1_done");
+
+        // intro 已走完 → 纯状态
+        if (introDone)
+        {
+            OpenTextViewer("普罗米修斯", GetPrometheusStatus());
+            return;
+        }
 
         // 首次点击普罗米修斯 → 根据探索情况分支
         if (!chatStarted)
         {
             if (openedTerminal && openedLog)
+            {
                 state.SetFlag("chat_first_all_explored");
+                state.SetFlag("chat_both_explored_for_intro"); // 已满足条件，直接解锁 intro
+            }
             else if (openedTerminal)
                 state.SetFlag("chat_first_terminal_only");
             else if (openedLog)
@@ -64,18 +75,47 @@ public class DesktopManager : MonoBehaviour
             else
                 state.SetFlag("chat_first_unexplored");
         }
-        // chat_started 已设置，但什么都没探索 → 第二次点击分支
+        // chat_started 但还没探索完 → 根据缺什么给出提醒
         else if (!openedTerminal && !openedLog)
         {
             state.SetFlag("chat_first_unexplored_repeat");
         }
+        else if (!openedTerminal)
+        {
+            state.SetFlag("chat_remind_terminal");
+        }
+        else if (!openedLog)
+        {
+            state.SetFlag("chat_remind_log");
+        }
         else
         {
-            OpenTextViewer("普罗米修斯", GetPrometheusStatus());
+            // 两个都探索了 → 正常触发 intro（如果还没触发）
+            TryTriggerIntroChain();
             return;
         }
 
         FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
+    }
+
+    /// <summary>
+    /// 当命令提示符和系统日志都被打开过且 chat_started 已设时，触发 intro 链。
+    /// </summary>
+    public void TryTriggerIntroChain()
+    {
+        var state = GameManager.Instance?.State;
+        if (state == null) return;
+        if (state.GetFlag("chat_intro_1_done")) return;
+
+        bool terminal = state.GetFlag("player_opened_terminal");
+        bool log = state.GetFlag("player_opened_log");
+        bool chatStarted = state.GetFlag("chat_started");
+
+        if (terminal && log && chatStarted)
+        {
+            state.SetFlag("chat_both_explored_for_intro");
+            FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
+        }
     }
 
     private string GetPrometheusStatus()
@@ -106,7 +146,8 @@ public class DesktopManager : MonoBehaviour
 
     private IEnumerator EnterLevelSequence()
     {
-        // 播放进入关卡前对话
+        // 设置触发 flag，播放进入关卡前对话
+        GameManager.Instance?.State?.SetFlag("do_enter_core");
         var dm = FindObjectOfType<DialogueManager>();
         dm?.TriggerDialogues("Desktop");
 
@@ -214,7 +255,12 @@ public class DesktopManager : MonoBehaviour
             _terminalWindow = go.GetComponent<TerminalWindow>();
         }
 
-        _terminalWindow?.Open();
+        if (_terminalWindow != null)
+        {
+            _terminalWindow.onClosed -= OnTerminalOrLogClosed;
+            _terminalWindow.onClosed += OnTerminalOrLogClosed;
+            _terminalWindow.Open();
+        }
 
         if (_terminalFirstOpen)
         {
@@ -236,8 +282,17 @@ public class DesktopManager : MonoBehaviour
             var go = Instantiate(textWindowPrefab, transform);
             var viewer = go.GetComponent<TextViewerWindow>();
             if (viewer != null)
+            {
+                viewer.onClosed -= OnTerminalOrLogClosed;
+                viewer.onClosed += OnTerminalOrLogClosed;
                 viewer.SetContent(fileName, content);
+            }
         }
+    }
+
+    private void OnTerminalOrLogClosed()
+    {
+        TryTriggerIntroChain();
     }
 
     private string GetSystemLogContent()
