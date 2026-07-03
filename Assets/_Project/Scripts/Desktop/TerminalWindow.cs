@@ -37,6 +37,81 @@ public class TerminalWindow : DraggableWindow
         base.Awake();
         if (inputField != null)
             inputField.onSubmit.AddListener(OnSubmit);
+        FixScrollLayout();
+    }
+
+    private void FixScrollLayout()
+    {
+        if (scrollRect == null || scrollRect.content == null) return;
+
+        // Viewport: 填满 ScrollRect
+        if (scrollRect.viewport != null)
+        {
+            var vp = scrollRect.viewport;
+            vp.anchorMin = Vector2.zero;
+            vp.anchorMax = Vector2.one;
+            vp.sizeDelta = Vector2.zero;
+            vp.anchoredPosition = Vector2.zero;
+        }
+
+        // Content: 锚定顶部，高度由代码手动驱动（不用 ContentSizeFitter，避免时序冲突）
+        var cr = scrollRect.content;
+        cr.anchorMin = new Vector2(0f, 1f);
+        cr.anchorMax = new Vector2(1f, 1f);
+        cr.pivot = new Vector2(0f, 1f);
+        cr.sizeDelta = Vector2.zero;
+
+        // 移除可能存在的 ContentSizeFitter，由代码手动管理高度
+        var fitter = cr.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+        if (fitter != null)
+            fitter.enabled = false;
+
+        // HistoryText: 填充 Content（留少许左边距）
+        if (historyText != null)
+        {
+            var hr = historyText.rectTransform;
+            hr.anchorMin = Vector2.zero;
+            hr.anchorMax = Vector2.one;
+            hr.pivot = new Vector2(0f, 1f);
+            hr.anchoredPosition = Vector2.zero;
+            hr.sizeDelta = Vector2.zero;
+            historyText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+            historyText.margin = new Vector4(4, 2, 4, 2); // 四周 margin
+            historyText.extraPadding = true; // 防止首行顶部被裁切
+        }
+
+        // 滚动条始终显示
+        scrollRect.verticalScrollbarVisibility = UnityEngine.UI.ScrollRect.ScrollbarVisibility.Permanent;
+    }
+
+    /// <summary>手动更新 Content 高度以匹配文本内容，然后滚动到底部。</summary>
+    private void UpdateContentHeightAndScroll()
+    {
+        if (historyText == null || scrollRect == null || scrollRect.content == null) return;
+
+        // 先强制 TMP 重建 mesh
+        historyText.ForceMeshUpdate(true);
+
+        // 用 content 当前宽度作为约束，计算文本渲染高度
+        float contentWidth = scrollRect.content.rect.width;
+        if (contentWidth <= 0f)
+        {
+            // Content rect 尚未确定，从 viewport 获取
+            var viewport = scrollRect.viewport != null ? scrollRect.viewport : (RectTransform)scrollRect.transform;
+            contentWidth = viewport.rect.width;
+        }
+
+        float textHeight = historyText.GetPreferredValues(contentWidth, 0f).y;
+
+        // 设置 Content 高度（min height = viewport 高度，防止弹性回弹出空白）
+        float viewportHeight = scrollRect.viewport != null ? scrollRect.viewport.rect.height : scrollRect.GetComponent<RectTransform>().rect.height;
+        float finalHeight = Mathf.Max(textHeight, viewportHeight + 1f);
+
+        scrollRect.content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, finalHeight);
+
+        // 强制刷新后滚动到底部
+        Canvas.ForceUpdateCanvases();
+        scrollRect.verticalNormalizedPosition = 0f;
     }
 
     public override void Open()
@@ -383,9 +458,7 @@ public class TerminalWindow : DraggableWindow
 
     private void ScrollToBottom()
     {
-        Canvas.ForceUpdateCanvases();
-        if (scrollRect != null)
-            scrollRect.verticalNormalizedPosition = 0f;
+        UpdateContentHeightAndScroll();
     }
 
     private void AppendLine(string text)

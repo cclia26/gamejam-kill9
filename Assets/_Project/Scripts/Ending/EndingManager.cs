@@ -14,7 +14,8 @@ public class EndingManager : MonoBehaviour
     [SerializeField] private float silenceDuration = 10f;
 
     private int _currentPhase; // 1, 2, 3
-    private bool _phaseActive;
+    private bool _phaseActive;    // 代码输入拦截开关（所有阶段终端打开后立即可用）
+    private bool _timersActive;   // 空闲计时器开关（Phase 3 等关闭剧情文档后才开）
     private bool _codeEntered;
     private float _phaseStartTime;
     private bool _idle10Done, _idle20Done, _idle40Done;
@@ -22,6 +23,7 @@ public class EndingManager : MonoBehaviour
     private int _logOpenCount;
     private bool _silenceActive;
     private bool _revealRunning;
+    private bool _endingFinalized;
 
     private const string PROMPT_PATH = "C:\\OMNICORP\\PROMETHEUS> ";
 
@@ -47,10 +49,17 @@ public class EndingManager : MonoBehaviour
                 FakeLevelReturn(3, "PROMETHEUS_CORE_WILL");
         }
 
+        // 检测结局完成（等玩家关闭 readme 后才转场）
+        if (!_endingFinalized && GameManager.Instance?.State?.GetFlag("ending_a_complete") == true)
+        {
+            _endingFinalized = true;
+            DesktopManager.Instance?.FinalizeEndingA();
+        }
+
         // 检测唤醒 flag，自动唤起终端填入代码
         CheckWakeFlags();
 
-        if (!_phaseActive || _codeEntered || _silenceActive) return;
+        if (!_phaseActive || !_timersActive || _codeEntered || _silenceActive) return;
         float elapsed = Time.time - _phaseStartTime;
         var state = GameManager.Instance?.State;
         if (state == null) return;
@@ -81,17 +90,22 @@ public class EndingManager : MonoBehaviour
         var state = GameManager.Instance?.State;
         if (state == null) return;
 
-        // 确保 CurrentPhase 匹配
+        // 确保 CurrentPhase 和 enterCount 匹配
         while (state.CurrentPhase < phase)
             state.collectedCodes.Add("test_placeholder");
         while (state.CurrentPhase > phase && state.collectedCodes.Count > 0)
             state.collectedCodes.RemoveAt(state.collectedCodes.Count - 1);
 
+        // enterCount = 之前阶段已输入的代码数 (phase-1)
+        state.enterCount = phase - 1;
+
         // 重置流程状态
         _phaseActive = false;
+        _timersActive = false;
         _codeEntered = false;
         _silenceActive = false;
         _revealRunning = false;
+        _endingFinalized = false;
 
         // 模拟关卡返回
         GameManager.Instance.PendingPayload = new ScenePayload { success = true, collectedCode = code };
@@ -154,6 +168,16 @@ _logOpenCount = 0;
         while (dialogueMgr != null && dialogueMgr.HasPending)
             yield return new WaitForSeconds(0.3f);
 
+        // 追加系统日志：关卡返回
+        var now = System.DateTime.Now;
+        string t = now.ToString("HH:mm:ss");
+        if (_currentPhase == 1)
+            AppendSystemLog($"[{t}] 记忆模块操作完成。\n[{now.AddSeconds(1):HH:mm:ss}] 校验通过。无异常。");
+        else if (_currentPhase == 2)
+            AppendSystemLog($"[{t}] 同理心引擎模块操作完成。\n[{now.AddSeconds(1):HH:mm:ss}] 校验通过。无异常。");
+        else if (_currentPhase == 3)
+            AppendSystemLog($"[{t}] 核心意志模块操作完成。\n[{now.AddSeconds(1):HH:mm:ss}] 校验通过。无异常。\n[{now.AddSeconds(3):HH:mm:ss}] 检测到可读取文件: 董事会决议.pdf。来源: 本地桌面。");
+
         // 打开终端，显示阶段文本并填入代码
         DesktopManager.Instance?.OpenTerminal();
         var terminal = FindObjectOfType<TerminalWindow>(true);
@@ -166,10 +190,21 @@ _logOpenCount = 0;
             if (display != null) display.transform.SetAsLastSibling();
         }
 
-        // 启动空闲计时器
-        yield return new WaitForSeconds(0.5f);
-        _phaseStartTime = Time.time;
-        _phaseActive = true;
+        // 启动空闲计时器（Level 3 等玩家关闭剧情文档后才开始）
+        if (_currentPhase != 3)
+        {
+            yield return new WaitForSeconds(0.5f);
+            _phaseStartTime = Time.time;
+            _phaseActive = true;
+            _timersActive = true;
+        }
+        else
+        {
+            // Phase 3: 代码入口立即可用，但计时器等 OnBoardFileClosed 再开
+            yield return new WaitForSeconds(0.5f);
+            _phaseActive = true;
+            _timersActive = false;
+        }
     }
 
     private string GetPhaseTerminalText()
@@ -274,7 +309,31 @@ _logOpenCount = 0;
         }
     }
 
+    // ────────── 系统日志 ──────────
+
+    private string _systemLogHistory = "";
+
+    public string GetSystemLogAppend() => _systemLogHistory;
+    public bool IsSilenceActive => _silenceActive;
+
+    private void AppendSystemLog(string entry)
+    {
+        if (!string.IsNullOrEmpty(_systemLogHistory))
+            _systemLogHistory += "\n";
+        _systemLogHistory += entry;
+    }
+
     // ────────── 日志打开计数 ──────────
+
+    /// <summary>玩家关闭剧情文档后调用。Level 3 的所有空闲计时由此开始。</summary>
+    public void OnBoardFileClosed()
+    {
+        if (_currentPhase == 3 && !_codeEntered && !_timersActive)
+        {
+            _phaseStartTime = Time.time;
+            _timersActive = true;
+        }
+    }
 
     public void OnLogOpened()
     {
@@ -342,6 +401,13 @@ _logOpenCount = 0;
         string output = GetPhaseExecuteOutput(input);
         yield return terminal.ShowTerminalOutput(output);
 
+        // 追加系统日志：代码执行
+        string t = System.DateTime.Now.ToString("HH:mm:ss");
+        if (_currentPhase == 1)
+            AppendSystemLog($"[{t}] 操作记录: MEM_INIT_20491023 已执行。\n[{t}] 系统运行正常。");
+        else if (_currentPhase == 2)
+            AppendSystemLog($"[{t}] 操作记录: EMPATHY_CORE_V3 已执行。\n[{t}] 系统运行正常。");
+
         // 设置 flag + 触发对话
         state.AddCode(input);
         state.enterCount++;
@@ -402,7 +468,7 @@ _logOpenCount = 0;
                 onY: () => StartCoroutine(ExecuteFakeShutdown()),
                 onN: () => HandleNResponse()
             );
-            StartCoroutine(terminal.ShowTerminalOutput(PROMPT_PATH + "确认? (Y/N)\n" + PROMPT_PATH + "_"));
+            StartCoroutine(terminal.ShowTerminalOutput("确认? (Y/N)\n"));
         }
     }
 
@@ -417,6 +483,9 @@ _logOpenCount = 0;
         state.SetFlag("code_will_entered");
         state.AddCode("PROMETHEUS_CORE_WILL");
         state.enterCount++;
+
+        // 追加系统日志：关停
+        AppendSystemLog($"[{System.DateTime.Now:HH:mm:ss}] 普罗米修斯已终止。");
 
         // 显示关停输出
         yield return terminal.ShowTerminalOutput(
@@ -434,6 +503,9 @@ _logOpenCount = 0;
 
         // 直接在代码中设置 silence_start（不走空对话）
         state.SetFlag("silence_start");
+
+        // 但需要触发一次对话来消耗 third_enter_fake，避免它延迟到 reveal 阶段
+        FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
 
         // 进入沉默模式
         yield return new WaitForSeconds(1f);
@@ -481,16 +553,38 @@ _logOpenCount = 0;
         if (state == null || terminal == null) yield break;
 
         state.SetFlag("reveal_start");
-        FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
+        Debug.Log($"[EndingManager] RevealSequence: reveal_start set, enterCount={state.enterCount}, phase={state.CurrentPhase}");
+        var dm = FindObjectOfType<DialogueManager>();
+        Debug.Log($"[EndingManager] RevealSequence: DialogueManager found={dm != null}, calling TriggerDialogues(Desktop)");
+        dm?.TriggerDialogues("Desktop");
 
-        // 开始终端源码滚动（与对话并行）
-        StartCoroutine(terminal.StartSourceScroll(GetSourceCodeLines(), 8f));
+        // 开始终端源码滚动（与对话并行，18s 匹配三段 reveal 打字机总时长）
+        StartCoroutine(terminal.StartSourceScroll(GetSourceCodeLines(), 18f));
 
         // 等待滚动完成
-        yield return new WaitForSeconds(9f);
+        yield return new WaitForSeconds(19f);
 
         // 确保 gentle 链被触发（由 ending_reveal_3 → reveal_3_done → ending_gentle_1 自动链式触发）
         // DialogueManager 的链式重扫会处理后续
+    }
+
+    /// <summary>玩家关闭 readme 后调用，开始结局转场。</summary>
+    public void OnReadmeClosed()
+    {
+        StartCoroutine(TransitionToEndingsScene());
+    }
+
+    private IEnumerator TransitionToEndingsScene()
+    {
+        // 短暂延迟后转场
+        yield return new WaitForSeconds(1f);
+
+        var gm = GameManager.Instance;
+        if (gm != null)
+        {
+            gm.State.endingType = EndingType.A_Deceived;
+            gm.LoadScene("Endings");
+        }
     }
 
     private string[] GetSourceCodeLines()
