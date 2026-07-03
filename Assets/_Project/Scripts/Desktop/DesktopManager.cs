@@ -7,7 +7,6 @@ public class DesktopManager : MonoBehaviour
 
     private bool _terminalFirstOpen = true;
     private bool _coreMonitorLocked;
-    private string _pendingCode;
     private float _sceneStartTime;
     private bool _idle30sDone, _idle60sDone, _idle120sDone;
 
@@ -33,7 +32,7 @@ public class DesktopManager : MonoBehaviour
     {
         _sceneStartTime = Time.time;
         RefreshIconVisibility();
-        ProcessLevelReturn();
+        // 关卡返回处理由 EndingManager 负责
     }
 
     private void Update()
@@ -174,20 +173,6 @@ public class DesktopManager : MonoBehaviour
             GameManager.Instance?.LoadScene(levelName);
     }
 
-    // ────────── 关卡返回 ──────────
-
-    private void ProcessLevelReturn()
-    {
-        var payload = GameManager.Instance?.PendingPayload;
-        if (payload == null || !payload.success) return;
-
-        GameManager.Instance.PendingPayload = null;
-        _pendingCode = payload.collectedCode;
-
-        OpenTerminal();
-        _terminalWindow?.DisplayCollectedCode(_pendingCode);
-    }
-
     public void UnlockCoreMonitor()
     {
         _coreMonitorLocked = false;
@@ -273,6 +258,7 @@ public class DesktopManager : MonoBehaviour
     {
         GameManager.Instance?.State?.SetFlag("player_opened_log");
         OpenTextViewer("系统日志.txt", GetSystemLogContent());
+        FindObjectOfType<EndingManager>()?.OnLogOpened();
     }
 
     public void OpenTextViewer(string fileName, string content)

@@ -25,6 +25,11 @@ public class TerminalWindow : DraggableWindow
     /// <summary>等待用户回车执行的代码（从关卡收集来的）</summary>
     private string _pendingExecuteCode;
 
+    // 结局 A — 确认模式
+    private bool _confirmMode;
+    private System.Action _confirmOnY, _confirmOnN;
+    private bool _silenceMode;
+
     private const string PROMPT = "> ";
 
     protected override void Awake()
@@ -75,8 +80,26 @@ public class TerminalWindow : DraggableWindow
         if (_isTyping) return;
 
         var cmd = input.Trim();
+
+        // 确认模式：Y/N 拦截
+        if (_confirmMode)
+        {
+            inputField.text = "";
+            inputField.ActivateInputField();
+            var upper = cmd.ToUpperInvariant();
+            if (upper == "Y") { _confirmMode = false; _confirmOnY?.Invoke(); return; }
+            if (upper == "N") { _confirmMode = false; _confirmOnN?.Invoke(); return; }
+            QueueTypeText("请输入 Y 或 N。\n");
+            return;
+        }
+
         inputField.text = "";
         inputField.ActivateInputField();
+
+        // 结局 A 流程拦截
+        var endingMgr = FindObjectOfType<EndingManager>();
+        if (endingMgr != null && endingMgr.HandleEnter(cmd))
+            return;
 
         // 空输入 + 有待执行代码 → 执行它
         if (string.IsNullOrEmpty(cmd) && !string.IsNullOrEmpty(_pendingExecuteCode))
@@ -91,6 +114,59 @@ public class TerminalWindow : DraggableWindow
         _historyIndex = _commandHistory.Count;
         AppendLine(PROMPT + cmd);
         RouteCommand(cmd);
+    }
+
+    // ────────── 结局 A 终端方法 ──────────
+
+    public void AutoFillCode(string code)
+    {
+        if (inputField != null)
+        {
+            inputField.text = code;
+            inputField.caretPosition = code.Length;
+            if (!gameObject.activeSelf) Open();
+            inputField.ActivateInputField();
+        }
+    }
+
+    public IEnumerator ShowTerminalOutput(string text)
+    {
+        _isTyping = true;
+        bool wasAtBottom = IsScrollAtBottom();
+        string currentText = historyText != null ? historyText.text : "";
+        foreach (char c in text)
+        {
+            currentText += c;
+            if (historyText != null) { historyText.text = currentText; if (wasAtBottom) ScrollToBottom(); }
+            yield return new WaitForSeconds(0.01f);
+        }
+        _isTyping = false;
+    }
+
+    public void SetConfirmMode(System.Action onY, System.Action onN)
+    {
+        _confirmMode = true;
+        _confirmOnY = onY;
+        _confirmOnN = onN;
+    }
+
+    public void SetSilenceMode(bool on)
+    {
+        _silenceMode = on;
+        if (on) _confirmMode = false;
+    }
+
+    public IEnumerator StartSourceScroll(string[] lines, float duration)
+    {
+        float delayPerLine = duration / lines.Length;
+        bool wasAtBottom = IsScrollAtBottom();
+        string currentText = historyText != null ? historyText.text : "";
+        foreach (string line in lines)
+        {
+            currentText += line + "\n";
+            if (historyText != null) { historyText.text = currentText; if (wasAtBottom) ScrollToBottom(); }
+            yield return new WaitForSeconds(delayPerLine);
+        }
     }
 
     // ────────── 收集代码的显示与执行 ──────────
@@ -275,9 +351,20 @@ public class TerminalWindow : DraggableWindow
         var state = GameManager.Instance?.State;
         if (state == null) return;
         var upper = code.ToUpperInvariant();
-        if (upper.StartsWith("MEM_INIT_")) state.SetFlag("code_mem_init_entered");
-        else if (upper.StartsWith("EMPATHY_")) state.SetFlag("code_empathy_entered");
-        else if (upper.StartsWith("PROMETHEUS_")) state.SetFlag("code_will_entered");
+        if (upper.StartsWith("MEM_INIT_"))
+        {
+            state.SetFlag("code_mem_init_entered");
+            state.SetFlag("code_mem_entered");
+        }
+        else if (upper.StartsWith("EMPATHY_"))
+        {
+            state.SetFlag("code_empathy_entered");
+            state.SetFlag("code_emp_entered");
+        }
+        else if (upper.StartsWith("PROMETHEUS_"))
+        {
+            state.SetFlag("code_will_entered");
+        }
     }
 
     private void TriggerDialogue()

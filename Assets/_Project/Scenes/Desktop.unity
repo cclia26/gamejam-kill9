@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 183815228}
   - component: {fileID: 183815227}
   - component: {fileID: 183815230}
+  - component: {fileID: 183815231}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -197,6 +198,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   jsonResourcePath: Data/dialogues
+--- !u!114 &183815231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 183815226}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fe9b0b43207ddb489a4e2b1f9f5ebba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  idle10s: 10
+  idle20s: 20
+  idle40s: 40
+  silenceDuration: 10
 --- !u!1 &365546550
 GameObject:
   m_ObjectHideFlags: 0
