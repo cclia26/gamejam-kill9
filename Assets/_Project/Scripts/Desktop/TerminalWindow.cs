@@ -34,6 +34,7 @@ public class TerminalWindow : DraggableWindow
 
     protected override void Awake()
     {
+        windowTitle = "命令提示符";
         base.Awake();
         if (inputField != null)
             inputField.onSubmit.AddListener(OnSubmit);
