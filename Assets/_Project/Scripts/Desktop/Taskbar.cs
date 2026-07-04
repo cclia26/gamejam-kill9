@@ -42,7 +42,6 @@ public class Taskbar : MonoBehaviour
             return null;
         }
         entry.Init(window, title, icon);
-        Debug.Log($"[Taskbar] 注册窗口: {title} (父节点共 {parent.childCount} 个子对象)");
         return entry;
     }
 }

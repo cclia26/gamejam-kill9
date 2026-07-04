@@ -55,10 +55,6 @@ public class DialogueManager : MonoBehaviour
             .OrderByDescending(d => d.priority)
             .ToList();
 
-        Debug.Log($"[DialogueManager] TriggerDialogues({sceneName}): enterCount={state.enterCount}, matched={matches.Count}, _isShowing={_isShowing}");
-        foreach (var m in matches)
-            Debug.Log($"  -> {m.id} (condition={m.triggerCondition}, enterCountReq={m.triggerEnterCount}, priority={m.priority})");
-
         foreach (var d in matches)
         {
             _pendingQueue.Enqueue(d);

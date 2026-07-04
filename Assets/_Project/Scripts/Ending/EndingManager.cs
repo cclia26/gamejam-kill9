@@ -33,22 +33,8 @@ public class EndingManager : MonoBehaviour
         ProcessLevelReturn();
     }
 
-    [Header("Debug")]
-    [SerializeField] private bool enableDebugKeys = true;
-
     private void Update()
     {
-        // ── 临时测试快捷键 ──
-        if (enableDebugKeys)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-                FakeLevelReturn(1, "MEM_INIT_20491023");
-            if (Input.GetKeyDown(KeyCode.Alpha2))
-                FakeLevelReturn(2, "EMPATHY_CORE_V3");
-            if (Input.GetKeyDown(KeyCode.Alpha3))
-                FakeLevelReturn(3, "PROMETHEUS_CORE_WILL");
-        }
-
         // 检测结局完成（等玩家关闭 readme 后才转场）
         if (!_endingFinalized && GameManager.Instance?.State?.GetFlag("ending_a_complete") == true)
         {
@@ -81,35 +67,6 @@ public class EndingManager : MonoBehaviour
             TriggerIdle(120);
             // 唤醒终端由 idle_*_120s_a 的 onComplete flag 触发 CheckWakeFlags 处理
         }
-    }
-
-    // ── 临时测试 ──
-    private void FakeLevelReturn(int phase, string code)
-    {
-        Debug.Log($"[EndingA Test] 模拟关卡 {phase} 返回，代码: {code}");
-        var state = GameManager.Instance?.State;
-        if (state == null) return;
-
-        // 确保 CurrentPhase 和 enterCount 匹配
-        while (state.CurrentPhase < phase)
-            state.collectedCodes.Add("test_placeholder");
-        while (state.CurrentPhase > phase && state.collectedCodes.Count > 0)
-            state.collectedCodes.RemoveAt(state.collectedCodes.Count - 1);
-
-        // enterCount = 之前阶段已输入的代码数 (phase-1)
-        state.enterCount = phase - 1;
-
-        // 重置流程状态
-        _phaseActive = false;
-        _timersActive = false;
-        _codeEntered = false;
-        _silenceActive = false;
-        _revealRunning = false;
-        _endingFinalized = false;
-
-        // 模拟关卡返回
-        GameManager.Instance.PendingPayload = new ScenePayload { success = true, collectedCode = code };
-        ProcessLevelReturn();
     }
 
     // ────────── 关卡返回处理 ──────────
@@ -553,10 +510,7 @@ _logOpenCount = 0;
         if (state == null || terminal == null) yield break;
 
         state.SetFlag("reveal_start");
-        Debug.Log($"[EndingManager] RevealSequence: reveal_start set, enterCount={state.enterCount}, phase={state.CurrentPhase}");
-        var dm = FindObjectOfType<DialogueManager>();
-        Debug.Log($"[EndingManager] RevealSequence: DialogueManager found={dm != null}, calling TriggerDialogues(Desktop)");
-        dm?.TriggerDialogues("Desktop");
+        FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
 
         // 开始终端源码滚动（与对话并行，18s 匹配三段 reveal 打字机总时长）
         StartCoroutine(terminal.StartSourceScroll(GetSourceCodeLines(), 18f));
