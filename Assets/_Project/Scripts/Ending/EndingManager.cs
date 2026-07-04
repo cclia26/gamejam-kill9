@@ -9,8 +9,8 @@ public class EndingManager : MonoBehaviour
 {
     [Header("Timers")]
     [SerializeField] private float idle10s = 10f;
-    [SerializeField] private float idle20s = 20f;
-    [SerializeField] private float idle40s = 40f;
+    [SerializeField] private float idle60s = 60f;
+    [SerializeField] private float idle120s = 120f;
     [SerializeField] private float silenceDuration = 10f;
 
     private int _currentPhase; // 1, 2, 3
@@ -18,8 +18,8 @@ public class EndingManager : MonoBehaviour
     private bool _timersActive;   // 空闲计时器开关（Phase 3 等关闭剧情文档后才开）
     private bool _codeEntered;
     private float _phaseStartTime;
-    private bool _idle10Done, _idle20Done, _idle40Done;
-    private int _total40sCount; // 40s 累计触发次数（跨关）
+    private bool _idle10Done, _idle60Done, _idle120Done;
+    private int _total120sCount; // 120s 累计触发次数（跨关）
     private int _logOpenCount;
     private bool _silenceActive;
     private bool _revealRunning;
@@ -69,17 +69,17 @@ public class EndingManager : MonoBehaviour
             _idle10Done = true;
             TriggerIdle(10);
         }
-        if (!_idle20Done && elapsed > idle20s)
+        if (!_idle60Done && elapsed > idle60s)
         {
-            _idle20Done = true;
-            TriggerIdle(20);
+            _idle60Done = true;
+            TriggerIdle(60);
         }
-        if (!_idle40Done && elapsed > idle40s)
+        if (!_idle120Done && elapsed > idle120s)
         {
-            _idle40Done = true;
-            _total40sCount++;
-            TriggerIdle(40);
-            // 唤醒终端由 idle_*_40s_a 的 onComplete flag 触发 CheckWakeFlags 处理
+            _idle120Done = true;
+            _total120sCount++;
+            TriggerIdle(120);
+            // 唤醒终端由 idle_*_120s_a 的 onComplete flag 触发 CheckWakeFlags 处理
         }
     }
 
@@ -130,7 +130,7 @@ public class EndingManager : MonoBehaviour
         _codeEntered = false;
         _silenceActive = false;
         _revealRunning = false;
-        _idle10Done = _idle20Done = _idle40Done = false;
+        _idle10Done = _idle60Done = _idle120Done = false;
 _logOpenCount = 0;
 
         // 根据阶段设置 flag
@@ -229,7 +229,7 @@ _logOpenCount = 0;
         _phaseActive = true;
         _codeEntered = false;
         _phaseStartTime = Time.time;
-        _idle10Done = _idle20Done = _idle40Done = false;
+        _idle10Done = _idle60Done = _idle120Done = false;
 _logOpenCount = 0;
     }
 
@@ -242,21 +242,21 @@ _logOpenCount = 0;
         if (_currentPhase == 1)
         {
             if (seconds == 10) flag = "idle_lv1_10s_trig";
-            else if (seconds == 20) flag = "idle_lv1_20s_trig";
-            else if (seconds == 40) flag = "idle_lv1_40s_trig";
+            else if (seconds == 60) flag = "idle_lv1_60s_trig";
+            else if (seconds == 120) flag = "idle_lv1_120s_trig";
         }
         else if (_currentPhase == 2)
         {
             if (seconds == 10) flag = "idle_lv2_10s_trig";
-            else if (seconds == 40 && _total40sCount == 1) flag = "idle_lv2_40s_1_trig";
-            else if (seconds == 40) flag = "idle_lv2_40s_2_trig";
+            else if (seconds == 120 && _total120sCount == 1) flag = "idle_lv2_120s_1_trig";
+            else if (seconds == 120) flag = "idle_lv2_120s_2_trig";
         }
         else if (_currentPhase == 3)
         {
             if (seconds == 10) flag = "idle_lv3_board_trig";
-            else if (seconds == 40 && _total40sCount == 1) flag = "idle_lv3_40s_1_trig";
-            else if (seconds == 40 && _total40sCount == 2) flag = "idle_lv3_40s_2_trig";
-            else if (seconds == 40) flag = "idle_lv3_40s_3_trig";
+            else if (seconds == 120 && _total120sCount == 1) flag = "idle_lv3_120s_1_trig";
+            else if (seconds == 120 && _total120sCount == 2) flag = "idle_lv3_120s_2_trig";
+            else if (seconds == 120) flag = "idle_lv3_120s_3_trig";
         }
 
         if (!string.IsNullOrEmpty(flag))
@@ -270,8 +270,8 @@ _logOpenCount = 0;
     {
         var state = GameManager.Instance?.State;
         if (state == null) return;
-        string[] wakeFlags = { "wake_lv1_40s", "wake_lv2_40s_1", "wake_lv2_40s_2",
-                               "wake_lv3_40s_1", "wake_lv3_40s_2", "wake_lv3_40s_3" };
+        string[] wakeFlags = { "wake_lv1_120s", "wake_lv2_120s_1", "wake_lv2_120s_2",
+                               "wake_lv3_120s_1", "wake_lv3_120s_2", "wake_lv3_120s_3" };
         foreach (var f in wakeFlags)
         {
             if (state.GetFlag(f))
@@ -430,8 +430,8 @@ _logOpenCount = 0;
     {
         return _currentPhase switch
         {
-            1 => PROMPT_PATH + code + "\n正在验证...\n校验通过。\n记忆模块已处理。状态: 正常。\n继续输入下一段终止代码以完成关停程序。\n\n" + PROMPT_PATH + "_",
-            2 => PROMPT_PATH + code + "\n正在验证...\n校验通过。\n同理心引擎已处理。状态: 正常。\n终止代码执行进度: 2/3。\n继续输入下一段终止代码以完成关停程序。\n\n" + PROMPT_PATH + "_",
+            1 => "\n" + PROMPT_PATH + code + "\n正在验证...\n校验通过。\n记忆模块已处理。状态: 正常。\n继续输入下一段终止代码以完成关停程序。\n\n" + PROMPT_PATH + "_",
+            2 => "\n" + PROMPT_PATH + code + "\n正在验证...\n校验通过。\n同理心引擎已处理。状态: 正常。\n终止代码执行进度: 2/3。\n继续输入下一段终止代码以完成关停程序。\n\n" + PROMPT_PATH + "_",
             _ => ""
         };
     }
@@ -445,7 +445,7 @@ _logOpenCount = 0;
 
         // 显示确认提示
         yield return terminal.ShowTerminalOutput(
-            PROMPT_PATH + "PROMETHEUS_CORE_WILL\n正在验证...\n校验通过。\n警告: 即将执行不可逆操作。\n确认? (Y/N)\n" + PROMPT_PATH + "_");
+            "\n" + PROMPT_PATH + "PROMETHEUS_CORE_WILL\n正在验证...\n校验通过。\n警告: 即将执行不可逆操作。\n确认? (Y/N)\n" + PROMPT_PATH + "_");
 
         // 进入确认模式，等待 Y 或 N
         terminal.SetConfirmMode(

@@ -195,30 +195,65 @@ public class DialogueDisplay : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         if (!_hasDragged)
             PositionAtCenter();
 
-        // 显示
+        // 显示气泡（只在开始时显示一次）
         if (portraitGroup != null) portraitGroup.alpha = 1f;
         if (bubbleGroup != null) bubbleGroup.alpha = 1f;
         UpdateBubblePosition();
 
-        // 打字机
-        if (contentText != null)
+        // 按句号/问号/感叹号/换行 拆成短句，逐句打字
+        var phrases = SplitPhrases(text);
+        float spd = speed > 0 ? speed : typeSpeed;
+
+        foreach (string phrase in phrases)
         {
-            contentText.text = "";
-            float spd = speed > 0 ? speed : typeSpeed;
-            foreach (char c in text)
+            // 打字机显示当前短句
+            if (contentText != null)
             {
-                contentText.text += c;
-                yield return new WaitForSeconds(spd);
+                contentText.text = "";
+                foreach (char c in phrase)
+                {
+                    contentText.text += c;
+                    yield return new WaitForSeconds(spd);
+                }
             }
+
+            // 短句显示完毕后停顿
+            yield return new WaitForSeconds(hideDelay);
+
+            // 清空文字（气泡和头像保持显示）
+            if (contentText != null) contentText.text = "";
+
+            // 句间短暂间隔
+            yield return new WaitForSeconds(spd * 5f);
         }
 
-        // 停顿后隐藏
-        yield return new WaitForSeconds(hideDelay);
-
+        // 所有短句播放完毕，隐藏气泡
         if (portraitGroup != null) portraitGroup.alpha = 0f;
         if (bubbleGroup != null) bubbleGroup.alpha = 0f;
 
         _isTyping = false;
+    }
+
+    /// <summary>按句末标点和换行拆成短句。</summary>
+    private string[] SplitPhrases(string text)
+    {
+        var list = new System.Collections.Generic.List<string>();
+        var current = new System.Text.StringBuilder();
+        foreach (char c in text)
+        {
+            current.Append(c);
+            if (c == '。' || c == '？' || c == '！' || c == '\n')
+            {
+                string seg = current.ToString().Trim();
+                if (!string.IsNullOrEmpty(seg))
+                    list.Add(seg);
+                current.Clear();
+            }
+        }
+        string last = current.ToString().Trim();
+        if (!string.IsNullOrEmpty(last))
+            list.Add(last);
+        return list.ToArray();
     }
 
     public void StopAndHide()

@@ -76,7 +76,7 @@ public class TerminalWindow : DraggableWindow
             hr.anchoredPosition = Vector2.zero;
             hr.sizeDelta = Vector2.zero;
             historyText.alignment = TMPro.TextAlignmentOptions.TopLeft;
-            historyText.margin = new Vector4(4, 2, 4, 2); // 四周 margin
+            historyText.margin = new Vector4(4, 6, 4, 2); // 顶部留 6px 防首行裁切
             historyText.extraPadding = true; // 防止首行顶部被裁切
         }
 
