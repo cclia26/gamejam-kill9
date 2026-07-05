@@ -98,9 +98,6 @@ public class DialogueManager : MonoBehaviour
         }
 
         _isShowing = false;
-
-        // 本轮对话全部结束 → 解锁核心
-        DesktopManager.Instance?.UnlockCoreMonitor();
     }
 
     private IEnumerator ShowDialogue(DialogueLine d, DialogueDisplay display)

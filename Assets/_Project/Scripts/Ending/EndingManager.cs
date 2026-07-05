@@ -33,8 +33,22 @@ public class EndingManager : MonoBehaviour
         ProcessLevelReturn();
     }
 
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugKeys;
+
     private void Update()
     {
+        // ── 调试快捷键（仅测试用，发布时关闭 enableDebugKeys）──
+        if (enableDebugKeys)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+                FakeLevelReturn(1, "MEM_INIT_20491023");
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+                FakeLevelReturn(2, "EMPATHY_CORE_V3");
+            if (Input.GetKeyDown(KeyCode.Alpha3))
+                FakeLevelReturn(3, "PROMETHEUS_CORE_WILL");
+        }
+
         // 检测结局完成（等玩家关闭 readme 后才转场）
         if (!_endingFinalized && GameManager.Instance?.State?.GetFlag("ending_a_complete") == true)
         {
@@ -69,6 +83,30 @@ public class EndingManager : MonoBehaviour
         }
     }
 
+    // ── 调试用：模拟关卡返回 ──
+    private void FakeLevelReturn(int phase, string code)
+    {
+        Debug.Log($"[Test] 模拟关卡 {phase} 返回，代码: {code}");
+        var state = GameManager.Instance?.State;
+        if (state == null) return;
+
+        while (state.CurrentPhase < phase)
+            state.collectedCodes.Add("test_placeholder");
+        while (state.CurrentPhase > phase && state.collectedCodes.Count > 0)
+            state.collectedCodes.RemoveAt(state.collectedCodes.Count - 1);
+        state.enterCount = phase - 1;
+
+        _phaseActive = false;
+        _timersActive = false;
+        _codeEntered = false;
+        _silenceActive = false;
+        _revealRunning = false;
+        _endingFinalized = false;
+
+        GameManager.Instance.PendingPayload = new ScenePayload { success = true, collectedCode = code };
+        ProcessLevelReturn();
+    }
+
     // ────────── 关卡返回处理 ──────────
 
     public void ProcessLevelReturn()
@@ -83,7 +121,8 @@ public class EndingManager : MonoBehaviour
         string code = payload.collectedCode;
         _currentPhase = state.CurrentPhase;
 
-        // 重置状态
+        // 重置状态，锁定核心（等代码输入台词播完再解锁）
+        DesktopManager.Instance?.LockCoreMonitor();
         _codeEntered = false;
         _silenceActive = false;
         _revealRunning = false;
@@ -378,7 +417,11 @@ _logOpenCount = 0;
 
         FindObjectOfType<DialogueManager>()?.TriggerDialogues("Desktop");
 
-        // Phase 1/2 完成后，核心监控解锁进入下一关
+        // 等台词播完再解锁核心
+        var dm = FindObjectOfType<DialogueManager>();
+        while (dm != null && dm.HasPending)
+            yield return new WaitForSeconds(0.2f);
+
         if (_currentPhase < 3)
             DesktopManager.Instance?.UnlockCoreMonitor();
     }

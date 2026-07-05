@@ -7,9 +7,11 @@ using UnityEngine.UI;
 /// </summary>
 public class DraggableWindow : MonoBehaviour, IBeginDragHandler, IDragHandler
 {
+    [Header("Window")]
     [SerializeField] protected RectTransform headerBar;
     [SerializeField] protected Button closeButton;
     [SerializeField] protected Button minimizeButton;
+    [SerializeField] private Sprite windowFrameSprite;
     protected Canvas canvas;
 
     public System.Action onClosed;
@@ -27,8 +29,44 @@ public class DraggableWindow : MonoBehaviour, IBeginDragHandler, IDragHandler
         if (minimizeButton != null)
             minimizeButton.onClick.AddListener(Minimize);
 
-        // 注册到任务栏（仅一次）
+        ApplyWindowFrame();
         RegisterToTaskbar();
+    }
+
+    private void ApplyWindowFrame()
+    {
+        if (windowFrameSprite == null) return;
+
+        var frameGo = new GameObject("WindowFrame", typeof(RectTransform), typeof(Image));
+        frameGo.transform.SetParent(transform, false);
+        frameGo.transform.SetAsFirstSibling(); // 最底层，不挡文字
+
+        // 有自定义窗口图片时，隐藏真实按钮（包括文字），图片上的绘制按钮 + 点击穿透响应
+        if (closeButton != null)
+        {
+            var g = closeButton.targetGraphic;
+            if (g != null) g.color = new Color(1, 1, 1, 0);
+            foreach (var t in closeButton.GetComponentsInChildren<TMPro.TMP_Text>())
+                t.color = new Color(1, 1, 1, 0);
+        }
+        if (minimizeButton != null)
+        {
+            var g = minimizeButton.targetGraphic;
+            if (g != null) g.color = new Color(1, 1, 1, 0);
+            foreach (var t in minimizeButton.GetComponentsInChildren<TMPro.TMP_Text>())
+                t.color = new Color(1, 1, 1, 0);
+        }
+
+        var img = frameGo.GetComponent<Image>();
+        img.sprite = windowFrameSprite;
+        img.type = Image.Type.Simple;
+        img.raycastTarget = false;    // 不拦截点击，穿透到按钮
+
+        var rt = frameGo.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
     }
 
     private void RegisterToTaskbar()

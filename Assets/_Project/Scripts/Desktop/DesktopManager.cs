@@ -60,13 +60,14 @@ public class DesktopManager : MonoBehaviour
             return;
         }
 
-        // 首次点击普罗米修斯 → 根据探索情况分支
+        // 首次点击普罗米修斯 → 根据探索情况分支，立即停止空闲计时器
         if (!chatStarted)
         {
+            state.SetFlag("chat_started"); // 立即设，不等 onComplete 链
             if (openedTerminal && openedLog)
             {
                 state.SetFlag("chat_first_all_explored");
-                state.SetFlag("chat_both_explored_for_intro"); // 已满足条件，直接解锁 intro
+                state.SetFlag("chat_both_explored_for_intro");
             }
             else if (openedTerminal)
                 state.SetFlag("chat_first_terminal_only");
@@ -146,21 +147,21 @@ public class DesktopManager : MonoBehaviour
 
     private IEnumerator EnterLevelSequence()
     {
-        // 设置触发 flag，播放进入关卡前对话
-        GameManager.Instance?.State?.SetFlag("do_enter_core");
-        var dm = FindObjectOfType<DialogueManager>();
-        dm?.TriggerDialogues("Desktop");
-
-        // 等待对话播完
-        while (dm != null && dm.HasPending)
-            yield return new WaitForSeconds(0.2f);
-
-        // 等 5 秒再加载
-        yield return new WaitForSeconds(5f);
-
-        // 加载关卡
         var state = GameManager.Instance?.State;
         if (state == null) yield break;
+
+        // 仅第一关前播放入场台词
+        if (state.CurrentPhase == 1)
+        {
+            state.SetFlag("do_enter_core");
+            var dm = FindObjectOfType<DialogueManager>();
+            dm?.TriggerDialogues("Desktop");
+
+            while (dm != null && dm.HasPending)
+                yield return new WaitForSeconds(0.2f);
+
+            yield return new WaitForSeconds(2f);
+        }
 
         string levelName = state.CurrentPhase switch
         {
@@ -177,7 +178,13 @@ public class DesktopManager : MonoBehaviour
     public void UnlockCoreMonitor()
     {
         _coreMonitorLocked = false;
+        GameManager.Instance?.State?.SetFlag("core_icon_visible");
         RefreshIconVisibility();
+    }
+
+    public void LockCoreMonitor()
+    {
+        _coreMonitorLocked = true;
     }
 
     // ────────── 图标 ──────────
