@@ -18,6 +18,23 @@ public class Level1_PlayerAnimator : MonoBehaviour
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
     }
 
+    public void SetFacingDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= 0f)
+        {
+            return;
+        }
+
+        lastMoveDirection = direction.normalized;
+
+        if (spriteRenderer != null && Mathf.Abs(lastMoveDirection.x) > 0f)
+        {
+            spriteRenderer.flipX = lastMoveDirection.x > 0f;
+        }
+
+        ApplyAnimatorValues(Vector2.zero);
+    }
+
     private void Update()
     {
         Vector2 moveInput = new Vector2(
@@ -40,6 +57,11 @@ public class Level1_PlayerAnimator : MonoBehaviour
             }
         }
 
+        ApplyAnimatorValues(moveInput);
+    }
+
+    private void ApplyAnimatorValues(Vector2 moveInput)
+    {
         animator.SetFloat(MoveX, moveInput.x);
         animator.SetFloat(MoveY, moveInput.y);
         animator.SetFloat(Speed, moveInput.magnitude);

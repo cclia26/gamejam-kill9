@@ -12,6 +12,8 @@ public class LocalTeleport : MonoBehaviour
     [SerializeField] private Image fadeOverlay;
     [SerializeField] private float fadeDuration = 0.25f;
     [SerializeField] private float blackHoldDuration = 0.05f;
+    [SerializeField] private bool setExitFacingDirection;
+    [SerializeField] private Vector2 exitFacingDirection = Vector2.down;
 
     private Transform player;
     private bool isTeleporting;
@@ -118,6 +120,8 @@ public class LocalTeleport : MonoBehaviour
         {
             cameraFollow.SnapToTarget();
         }
+
+        ApplyExitFacingDirection(teleportingPlayer);
     }
 
     private bool CanTeleport()
@@ -128,6 +132,22 @@ public class LocalTeleport : MonoBehaviour
         }
 
         return requiredDoor == null || requiredDoor.open;
+    }
+
+    private void ApplyExitFacingDirection(Transform teleportingPlayer)
+    {
+        if (!setExitFacingDirection)
+        {
+            return;
+        }
+
+        Level1_PlayerAnimator playerAnimator = teleportingPlayer.GetComponent<Level1_PlayerAnimator>();
+        if (playerAnimator == null)
+        {
+            playerAnimator = teleportingPlayer.GetComponentInChildren<Level1_PlayerAnimator>();
+        }
+
+        playerAnimator?.SetFacingDirection(exitFacingDirection);
     }
 
     private void SetFadeOverlayActive(bool active, float alpha)

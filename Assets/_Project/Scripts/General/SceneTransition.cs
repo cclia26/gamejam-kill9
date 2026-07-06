@@ -3,12 +3,17 @@ using UnityEngine.SceneManagement;
 
 public class SceneTransition : MonoBehaviour
 {
+    public const string SpawnFacingXKey = "spawnFacingX";
+    public const string SpawnFacingYKey = "spawnFacingY";
+
     [Header("Scene")]
     [SerializeField] private string targetSceneName;
     [SerializeField] private bool requireMouseClick;
     [SerializeField] private float interactionDistance = 3.5f;
     [SerializeField] private Vector2 interactionBoxSize = new Vector2(1.6f, 3.0f);
     [SerializeField] private Vector2 interactionBoxOffset = new Vector2(0f, 0f);
+    [SerializeField] private bool setSpawnFacingDirection;
+    [SerializeField] private Vector2 spawnFacingDirection = Vector2.down;
 
     [Header("Highlight")]
     [SerializeField] private bool enableHoverHighlight;
@@ -220,9 +225,10 @@ public class SceneTransition : MonoBehaviour
             return;
         }
 
+        ScenePayload payload = CreatePayload();
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.LoadScene(targetSceneName);
+            GameManager.Instance.LoadScene(targetSceneName, payload);
         }
         else
         {
@@ -230,6 +236,32 @@ public class SceneTransition : MonoBehaviour
         }
 
         Debug.Log("transition to " + targetSceneName);
+    }
+
+    private ScenePayload CreatePayload()
+    {
+        ScenePayload payload = GameManager.Instance != null
+            ? GameManager.Instance.PendingPayload
+            : null;
+
+        if (!setSpawnFacingDirection)
+        {
+            return payload;
+        }
+
+        if (payload == null)
+        {
+            payload = new ScenePayload();
+        }
+
+        Vector2 facingDirection = spawnFacingDirection.sqrMagnitude > 0f
+            ? spawnFacingDirection.normalized
+            : Vector2.down;
+
+        payload.SetExtra(SpawnFacingXKey, facingDirection.x);
+        payload.SetExtra(SpawnFacingYKey, facingDirection.y);
+
+        return payload;
     }
 
     private void CreateHighlightRenderer()
