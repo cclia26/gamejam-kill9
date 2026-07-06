@@ -337,6 +337,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetSceneName: Level1_Rooms
+  setSpawnFacingDirection: 1
+  spawnFacingDirection: {x: 0, y: 1}
 --- !u!61 &264105134
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -369,7 +371,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 2.148655, y: 2.1675057}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -380,7 +382,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 5.448097, y: 7.6721487}
   m_EdgeRadius: 0
 --- !u!212 &264105135
 SpriteRenderer:
@@ -539,7 +541,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e536812a3a4b17e418ca667519fc5cbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
+  target: {fileID: 1373700668}
   smoothTime: 0.15
   cameraBounds: {fileID: 1905453307}
 --- !u!1 &357663979
@@ -902,6 +904,11 @@ Transform:
   - {fileID: 97785734}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!4 &1373700668 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2881748240916526595, guid: 2be4380afcf4f3641a0bcafaec1ebc84, type: 3}
+  m_PrefabInstance: {fileID: 4612329654523168120}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1736321151
 GameObject:
   m_ObjectHideFlags: 0
