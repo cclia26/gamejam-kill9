@@ -215,6 +215,7 @@ MonoBehaviour:
   idle60s: 60
   idle120s: 120
   silenceDuration: 10
+  enableDebugKeys: 0
 --- !u!1 &229009401
 GameObject:
   m_ObjectHideFlags: 0
