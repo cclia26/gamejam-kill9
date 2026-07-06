@@ -242,8 +242,9 @@ public class BigLevel2DialogueController : MonoBehaviour
     public void OnFinalDoorEntered()
     {
         if (_winStarted) return;
-        _winStarted = true;
+
         FireCondition("l2_final_door_enter", "BigLevel2_Sub3");
+        StartWinFlow();
     }
 
     // ────────── 按钮状态轮询 ──────────

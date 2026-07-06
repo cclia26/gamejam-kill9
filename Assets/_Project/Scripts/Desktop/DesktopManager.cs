@@ -172,7 +172,10 @@ public class DesktopManager : MonoBehaviour
         };
 
         if (!string.IsNullOrEmpty(levelName))
+        {
+            state.SetFlag("desktop_initial_dialogue_locked");
             GameManager.Instance?.LoadScene(levelName);
+        }
     }
 
     public void UnlockCoreMonitor()

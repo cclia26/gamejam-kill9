@@ -11961,7 +11961,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   codeText: EMPATHY_CORE_V3
-  codeFontSize: 36
+  codeFontSize: 44
   line1: "\u8FD9\u5C31\u662F\u7B2C\u4E8C\u6BB5\u6838\u5FC3\u4EE3\u7801\u3002"
   line2: "\u8BB0\u4F4F\u5B83\u3002"
   fadeDuration: 0.6
@@ -15598,3 +15598,4 @@ SceneRoots:
   - {fileID: 1354524370}
   - {fileID: 1660836169}
   - {fileID: 734454433}
+
