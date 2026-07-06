@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2881748240916526595}
   - component: {fileID: 624907995579810041}
   - component: {fileID: 200934155338132856}
+  - component: {fileID: -909872249849215705}
   m_Layer: 0
   m_Name: Player_Level2
   m_TagString: Player
@@ -74,11 +75,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 6
-  jumpForce: 15
+  jumpForce: 16
   groundCheckHeight: 0.05
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
+--- !u!114 &-909872249849215705
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1939570124334110790}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19872bb4cd90cee46a00ea8f033fcad7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundCheckHeight: 0.05
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!1001 &2369397681457834472
 PrefabInstance:
   m_ObjectHideFlags: 0
