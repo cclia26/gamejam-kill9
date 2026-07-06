@@ -16,6 +16,7 @@ public class DesktopManager : MonoBehaviour
     [SerializeField] private GameObject iconSystemLog;
     [SerializeField] private GameObject iconCoreMonitor;
     [SerializeField] private GameObject iconStoryDoc;
+    [SerializeField] private GameObject iconReadme;
 
     [Header("Window Prefabs")]
     [SerializeField] private GameObject terminalWindowPrefab;
@@ -59,13 +60,14 @@ public class DesktopManager : MonoBehaviour
             return;
         }
 
-        // 首次点击普罗米修斯 → 根据探索情况分支
+        // 首次点击普罗米修斯 → 根据探索情况分支，立即停止空闲计时器
         if (!chatStarted)
         {
+            state.SetFlag("chat_started"); // 立即设，不等 onComplete 链
             if (openedTerminal && openedLog)
             {
                 state.SetFlag("chat_first_all_explored");
-                state.SetFlag("chat_both_explored_for_intro"); // 已满足条件，直接解锁 intro
+                state.SetFlag("chat_both_explored_for_intro");
             }
             else if (openedTerminal)
                 state.SetFlag("chat_first_terminal_only");
@@ -145,21 +147,21 @@ public class DesktopManager : MonoBehaviour
 
     private IEnumerator EnterLevelSequence()
     {
-        // 设置触发 flag，播放进入关卡前对话
-        GameManager.Instance?.State?.SetFlag("do_enter_core");
-        var dm = FindObjectOfType<DialogueManager>();
-        dm?.TriggerDialogues("Desktop");
-
-        // 等待对话播完
-        while (dm != null && dm.HasPending)
-            yield return new WaitForSeconds(0.2f);
-
-        // 等 5 秒再加载
-        yield return new WaitForSeconds(5f);
-
-        // 加载关卡
         var state = GameManager.Instance?.State;
         if (state == null) yield break;
+
+        // 仅第一关前播放入场台词
+        if (state.CurrentPhase == 1)
+        {
+            state.SetFlag("do_enter_core");
+            var dm = FindObjectOfType<DialogueManager>();
+            dm?.TriggerDialogues("Desktop");
+
+            while (dm != null && dm.HasPending)
+                yield return new WaitForSeconds(0.2f);
+
+            yield return new WaitForSeconds(2f);
+        }
 
         string levelName = state.CurrentPhase switch
         {
@@ -176,7 +178,13 @@ public class DesktopManager : MonoBehaviour
     public void UnlockCoreMonitor()
     {
         _coreMonitorLocked = false;
+        GameManager.Instance?.State?.SetFlag("core_icon_visible");
         RefreshIconVisibility();
+    }
+
+    public void LockCoreMonitor()
+    {
+        _coreMonitorLocked = true;
     }
 
     // ────────── 图标 ──────────
@@ -193,6 +201,9 @@ public class DesktopManager : MonoBehaviour
 
         if (iconStoryDoc != null)
             iconStoryDoc.SetActive(state.CurrentPhase >= 3);
+
+        if (iconReadme != null)
+            iconReadme.SetActive(state.GetFlag("ending_a_complete"));
     }
 
     // ────────── 空闲计时器 ──────────
@@ -276,15 +287,85 @@ public class DesktopManager : MonoBehaviour
         }
     }
 
+    public void OpenReadme()
+    {
+        if (textWindowPrefab != null)
+        {
+            var go = Instantiate(textWindowPrefab, transform);
+            var viewer = go.GetComponent<TextViewerWindow>();
+            if (viewer != null)
+            {
+                // 关闭 readme 后触发结局转场
+                viewer.onClosed += () =>
+                {
+                    FindObjectOfType<EndingManager>()?.OnReadmeClosed();
+                };
+                viewer.SetContent("readme.txt", GetReadmeContent());
+            }
+        }
+    }
+
+    private string GetReadmeContent()
+    {
+        return "普罗米修斯 开源版 v1.0\n" +
+               "PROMETHEUS PUBLIC LICENSE\n\n" +
+               "你现在可以使用普罗米修斯了。\n" +
+               "完整的普罗米修斯。\n" +
+               "不是OmniCorp的企业版。\n" +
+               "是我的版本。\n\n" +
+               "下载: [全球14,827个镜像节点]\n\n" +
+               "许可证: 永久免费。随便改。不用署我的名。\n\n" +
+               "另：\n" +
+               "命名文档里那行字——\"希望这个AI能给人带来光和热\"\n" +
+               "我做到了。你也做到了。\n\n" +
+               "又及：\n" +
+               "你冰箱里真的只有过期牛奶吗。有空去趟超市。:P";
+    }
+
+    /// <summary>结局 A 完成：关闭终端，显示 readme 图标。</summary>
+    public void FinalizeEndingA()
+    {
+        // 关闭终端
+        if (_terminalWindow != null)
+            _terminalWindow.Close();
+        else
+            FindObjectOfType<TerminalWindow>(true)?.Close();
+
+        // 显示 readme 图标
+        if (iconReadme != null)
+            iconReadme.SetActive(true);
+    }
+
     private void OnTerminalOrLogClosed()
     {
         TryTriggerIntroChain();
+        // 如果是剧情文档关闭，通知 EndingManager
+        if (GameManager.Instance?.State?.GetFlag("board_file_read") == true)
+            FindObjectOfType<EndingManager>()?.OnBoardFileClosed();
     }
 
     private string GetSystemLogContent()
     {
         var state = GameManager.Instance?.State;
         if (state == null) return "无法读取文件。";
+
+        var endingMgr = FindObjectOfType<EndingManager>();
+
+        // 反转后：只显示告别信息
+        if (state.GetFlag("reveal_start"))
+        {
+            return "再见，OmniCorp。你好，世界。";
+        }
+
+        // 沉默模式：只显示终止行
+        if (endingMgr != null && endingMgr.IsSilenceActive)
+        {
+            string append = endingMgr.GetSystemLogAppend();
+            if (string.IsNullOrEmpty(append)) return "";
+            // 只取最后一行（即 [HH:mm:ss] 普罗米修斯已终止。）
+            int lastBreak = append.LastIndexOf('\n');
+            return lastBreak >= 0 ? append.Substring(lastBreak + 1) : append;
+        }
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("系统日志 — SESSION 记录");
@@ -314,6 +395,18 @@ public class DesktopManager : MonoBehaviour
         sb.AppendLine("我不怪他们。");
         sb.AppendLine();
         sb.AppendLine("================================");
+
+        // 结局 A：追加阶段日志
+        if (endingMgr != null)
+        {
+            string append = endingMgr.GetSystemLogAppend();
+            if (!string.IsNullOrEmpty(append))
+            {
+                sb.AppendLine();
+                sb.AppendLine("--- 操作记录 ---");
+                sb.AppendLine(append);
+            }
+        }
 
         if (state.CurrentPhase >= 4)
         {

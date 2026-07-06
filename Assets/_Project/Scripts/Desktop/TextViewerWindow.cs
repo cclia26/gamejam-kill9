@@ -13,12 +13,17 @@ public class TextViewerWindow : DraggableWindow
 
     public void SetContent(string fileName, string content)
     {
+        windowTitle = fileName;
         if (titleText != null)
             titleText.text = fileName;
         if (contentText != null)
             contentText.text = content;
         if (scrollRect != null)
             scrollRect.verticalNormalizedPosition = 1f;
+
+        // 更新任务栏标签
+        if (_taskbarEntry != null && _taskbarEntry.label != null)
+            _taskbarEntry.label.text = fileName;
 
         Open();
     }

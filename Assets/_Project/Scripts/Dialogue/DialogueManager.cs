@@ -98,9 +98,6 @@ public class DialogueManager : MonoBehaviour
         }
 
         _isShowing = false;
-
-        // 本轮对话全部结束 → 解锁核心
-        DesktopManager.Instance?.UnlockCoreMonitor();
     }
 
     private IEnumerator ShowDialogue(DialogueLine d, DialogueDisplay display)
@@ -115,14 +112,22 @@ public class DialogueManager : MonoBehaviour
         // 运行时替换：系统时间占位符 → 真实时间
         displayText = ReplaceTimePlaceholders(displayText);
 
-        if (display != null)
+        // 空文本跳过显示（如 third_enter_fake），只等一帧完成回调
+        if (!string.IsNullOrEmpty(displayText))
         {
-            yield return display.PlayText(displayText, speed);
+            if (display != null)
+            {
+                yield return display.PlayText(displayText, speed);
+            }
+            else
+            {
+                Debug.Log($"[Dialogue] {displayText}");
+                yield return new WaitForSeconds(1f);
+            }
         }
         else
         {
-            Debug.Log($"[Dialogue] {displayText}");
-            yield return new WaitForSeconds(1f);
+            yield return null;
         }
 
         // 完成回调：设置 flag + 刷新桌面图标
