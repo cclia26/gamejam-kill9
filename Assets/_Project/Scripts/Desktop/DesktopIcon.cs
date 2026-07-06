@@ -13,7 +13,8 @@ public class DesktopIcon : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
         PrometheusChat,   // 普罗米修斯
         SystemLog,        // 系统日志.txt
         CoreMonitor,      // 核心.exe
-        StoryDoc          // 故事文档
+        StoryDoc,         // 故事文档
+        Readme            // readme.txt（结局后出现）
     }
 
     [SerializeField] private IconType iconType;
@@ -68,6 +69,9 @@ public class DesktopIcon : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
                 break;
             case IconType.StoryDoc:
                 dm.OpenTextViewer("故事文档", GetStoryDocContent());
+                break;
+            case IconType.Readme:
+                dm.OpenReadme();
                 break;
         }
     }

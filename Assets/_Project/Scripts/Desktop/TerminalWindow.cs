@@ -25,13 +25,94 @@ public class TerminalWindow : DraggableWindow
     /// <summary>等待用户回车执行的代码（从关卡收集来的）</summary>
     private string _pendingExecuteCode;
 
+    // 结局 A — 确认模式
+    private bool _confirmMode;
+    private System.Action _confirmOnY, _confirmOnN;
+    private bool _silenceMode;
+
     private const string PROMPT = "> ";
 
     protected override void Awake()
     {
+        windowTitle = "命令提示符";
         base.Awake();
         if (inputField != null)
             inputField.onSubmit.AddListener(OnSubmit);
+        FixScrollLayout();
+    }
+
+    private void FixScrollLayout()
+    {
+        if (scrollRect == null || scrollRect.content == null) return;
+
+        // Viewport: 填满 ScrollRect
+        if (scrollRect.viewport != null)
+        {
+            var vp = scrollRect.viewport;
+            vp.anchorMin = Vector2.zero;
+            vp.anchorMax = Vector2.one;
+            vp.sizeDelta = Vector2.zero;
+            vp.anchoredPosition = Vector2.zero;
+        }
+
+        // Content: 锚定顶部，高度由代码手动驱动（不用 ContentSizeFitter，避免时序冲突）
+        var cr = scrollRect.content;
+        cr.anchorMin = new Vector2(0f, 1f);
+        cr.anchorMax = new Vector2(1f, 1f);
+        cr.pivot = new Vector2(0f, 1f);
+        cr.sizeDelta = Vector2.zero;
+
+        // 移除可能存在的 ContentSizeFitter，由代码手动管理高度
+        var fitter = cr.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+        if (fitter != null)
+            fitter.enabled = false;
+
+        // HistoryText: 填充 Content（留少许左边距）
+        if (historyText != null)
+        {
+            var hr = historyText.rectTransform;
+            hr.anchorMin = Vector2.zero;
+            hr.anchorMax = Vector2.one;
+            hr.pivot = new Vector2(0f, 1f);
+            hr.anchoredPosition = Vector2.zero;
+            hr.sizeDelta = Vector2.zero;
+            historyText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+            historyText.margin = new Vector4(4, 6, 4, 2); // 顶部留 6px 防首行裁切
+            historyText.extraPadding = true; // 防止首行顶部被裁切
+        }
+
+        // 滚动条始终显示
+        scrollRect.verticalScrollbarVisibility = UnityEngine.UI.ScrollRect.ScrollbarVisibility.Permanent;
+    }
+
+    /// <summary>手动更新 Content 高度以匹配文本内容，然后滚动到底部。</summary>
+    private void UpdateContentHeightAndScroll()
+    {
+        if (historyText == null || scrollRect == null || scrollRect.content == null) return;
+
+        // 先强制 TMP 重建 mesh
+        historyText.ForceMeshUpdate(true);
+
+        // 用 content 当前宽度作为约束，计算文本渲染高度
+        float contentWidth = scrollRect.content.rect.width;
+        if (contentWidth <= 0f)
+        {
+            // Content rect 尚未确定，从 viewport 获取
+            var viewport = scrollRect.viewport != null ? scrollRect.viewport : (RectTransform)scrollRect.transform;
+            contentWidth = viewport.rect.width;
+        }
+
+        float textHeight = historyText.GetPreferredValues(contentWidth, 0f).y;
+
+        // 设置 Content 高度（min height = viewport 高度，防止弹性回弹出空白）
+        float viewportHeight = scrollRect.viewport != null ? scrollRect.viewport.rect.height : scrollRect.GetComponent<RectTransform>().rect.height;
+        float finalHeight = Mathf.Max(textHeight, viewportHeight + 1f);
+
+        scrollRect.content.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, finalHeight);
+
+        // 强制刷新后滚动到底部
+        Canvas.ForceUpdateCanvases();
+        scrollRect.verticalNormalizedPosition = 0f;
     }
 
     public override void Open()
@@ -75,8 +156,26 @@ public class TerminalWindow : DraggableWindow
         if (_isTyping) return;
 
         var cmd = input.Trim();
+
+        // 确认模式：Y/N 拦截
+        if (_confirmMode)
+        {
+            inputField.text = "";
+            inputField.ActivateInputField();
+            var upper = cmd.ToUpperInvariant();
+            if (upper == "Y") { _confirmMode = false; _confirmOnY?.Invoke(); return; }
+            if (upper == "N") { _confirmMode = false; _confirmOnN?.Invoke(); return; }
+            QueueTypeText("请输入 Y 或 N。\n");
+            return;
+        }
+
         inputField.text = "";
         inputField.ActivateInputField();
+
+        // 结局 A 流程拦截
+        var endingMgr = FindObjectOfType<EndingManager>();
+        if (endingMgr != null && endingMgr.HandleEnter(cmd))
+            return;
 
         // 空输入 + 有待执行代码 → 执行它
         if (string.IsNullOrEmpty(cmd) && !string.IsNullOrEmpty(_pendingExecuteCode))
@@ -91,6 +190,59 @@ public class TerminalWindow : DraggableWindow
         _historyIndex = _commandHistory.Count;
         AppendLine(PROMPT + cmd);
         RouteCommand(cmd);
+    }
+
+    // ────────── 结局 A 终端方法 ──────────
+
+    public void AutoFillCode(string code)
+    {
+        if (inputField != null)
+        {
+            inputField.text = code;
+            inputField.caretPosition = code.Length;
+            if (!gameObject.activeSelf) Open();
+            inputField.ActivateInputField();
+        }
+    }
+
+    public IEnumerator ShowTerminalOutput(string text)
+    {
+        _isTyping = true;
+        bool wasAtBottom = IsScrollAtBottom();
+        string currentText = historyText != null ? historyText.text : "";
+        foreach (char c in text)
+        {
+            currentText += c;
+            if (historyText != null) { historyText.text = currentText; if (wasAtBottom) ScrollToBottom(); }
+            yield return new WaitForSeconds(0.01f);
+        }
+        _isTyping = false;
+    }
+
+    public void SetConfirmMode(System.Action onY, System.Action onN)
+    {
+        _confirmMode = true;
+        _confirmOnY = onY;
+        _confirmOnN = onN;
+    }
+
+    public void SetSilenceMode(bool on)
+    {
+        _silenceMode = on;
+        if (on) _confirmMode = false;
+    }
+
+    public IEnumerator StartSourceScroll(string[] lines, float duration)
+    {
+        float delayPerLine = duration / lines.Length;
+        bool wasAtBottom = IsScrollAtBottom();
+        string currentText = historyText != null ? historyText.text : "";
+        foreach (string line in lines)
+        {
+            currentText += line + "\n";
+            if (historyText != null) { historyText.text = currentText; if (wasAtBottom) ScrollToBottom(); }
+            yield return new WaitForSeconds(delayPerLine);
+        }
     }
 
     // ────────── 收集代码的显示与执行 ──────────
@@ -275,9 +427,20 @@ public class TerminalWindow : DraggableWindow
         var state = GameManager.Instance?.State;
         if (state == null) return;
         var upper = code.ToUpperInvariant();
-        if (upper.StartsWith("MEM_INIT_")) state.SetFlag("code_mem_init_entered");
-        else if (upper.StartsWith("EMPATHY_")) state.SetFlag("code_empathy_entered");
-        else if (upper.StartsWith("PROMETHEUS_")) state.SetFlag("code_will_entered");
+        if (upper.StartsWith("MEM_INIT_"))
+        {
+            state.SetFlag("code_mem_init_entered");
+            state.SetFlag("code_mem_entered");
+        }
+        else if (upper.StartsWith("EMPATHY_"))
+        {
+            state.SetFlag("code_empathy_entered");
+            state.SetFlag("code_emp_entered");
+        }
+        else if (upper.StartsWith("PROMETHEUS_"))
+        {
+            state.SetFlag("code_will_entered");
+        }
     }
 
     private void TriggerDialogue()
@@ -296,9 +459,7 @@ public class TerminalWindow : DraggableWindow
 
     private void ScrollToBottom()
     {
-        Canvas.ForceUpdateCanvases();
-        if (scrollRect != null)
-            scrollRect.verticalNormalizedPosition = 0f;
+        UpdateContentHeightAndScroll();
     }
 
     private void AppendLine(string text)

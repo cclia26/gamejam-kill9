@@ -4,15 +4,26 @@ using UnityEngine;
 
 public class Controller_Will : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+     [SerializeField] private float moveSpeed = 4f;
+      private Rigidbody2D rb;
+    private Vector2 moveInput;
+
+    private void Awake()
     {
-        
+        rb = GetComponent<Rigidbody2D>();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        
+        float x = Input.GetAxisRaw("Horizontal");
+        float y = Input.GetAxisRaw("Vertical");
+
+        moveInput = new Vector2(x, y).normalized;
+
+    }
+
+    private void FixedUpdate()
+    {
+        rb.MovePosition(rb.position + moveInput * moveSpeed * Time.fixedDeltaTime);
     }
 }
