@@ -133,7 +133,7 @@ GameObject:
   - component: {fileID: 74906388}
   - component: {fileID: 74906389}
   m_Layer: 0
-  m_Name: image (2)
+  m_Name: cabinet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -378,7 +378,7 @@ GameObject:
   - component: {fileID: 246034670}
   - component: {fileID: 246034671}
   m_Layer: 0
-  m_Name: image (7)
+  m_Name: door
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -462,7 +462,7 @@ GameObject:
   - component: {fileID: 428034252}
   - component: {fileID: 428034253}
   m_Layer: 0
-  m_Name: image (6)
+  m_Name: Locker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -688,7 +688,7 @@ GameObject:
   - component: {fileID: 788736204}
   - component: {fileID: 788736205}
   m_Layer: 0
-  m_Name: image
+  m_Name: refrigerator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -772,7 +772,7 @@ GameObject:
   - component: {fileID: 847633959}
   - component: {fileID: 847633960}
   m_Layer: 0
-  m_Name: image (1)
+  m_Name: dining table
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1024,7 +1024,7 @@ GameObject:
   - component: {fileID: 965683829}
   - component: {fileID: 965683830}
   m_Layer: 0
-  m_Name: image (8)
+  m_Name: range hood
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1113,7 +1113,7 @@ GameObject:
   - component: {fileID: 1022516571}
   - component: {fileID: 1022516572}
   m_Layer: 0
-  m_Name: image (5)
+  m_Name: Stove
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

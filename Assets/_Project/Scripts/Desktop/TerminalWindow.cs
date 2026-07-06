@@ -153,7 +153,11 @@ public class TerminalWindow : DraggableWindow
 
     private void OnSubmit(string input)
     {
-        if (_isTyping) return;
+        if (_isTyping)
+        {
+            StartCoroutine(SubmitAfterTyping(input));
+            return;
+        }
 
         var cmd = input.Trim();
 
@@ -192,6 +196,14 @@ public class TerminalWindow : DraggableWindow
         RouteCommand(cmd);
     }
 
+
+    private IEnumerator SubmitAfterTyping(string input)
+    {
+        while (_isTyping)
+            yield return null;
+
+        OnSubmit(input);
+    }
     // ────────── 结局 A 终端方法 ──────────
 
     public void AutoFillCode(string code)
@@ -410,6 +422,17 @@ public class TerminalWindow : DraggableWindow
     /// </summary>
     private void HandleCodeInput(string code)
     {
+        var endingMgr = FindObjectOfType<EndingManager>();
+        if (endingMgr == null && GameManager.Instance != null)
+        {
+            endingMgr = GameManager.Instance.gameObject.GetComponent<EndingManager>();
+            if (endingMgr == null)
+                endingMgr = GameManager.Instance.gameObject.AddComponent<EndingManager>();
+        }
+
+        if (endingMgr != null && endingMgr.TryRecoverAndHandleCode(code))
+            return;
+
         QueueTypeText($"代码 {code} 需要通过\"核心.exe\"进入关卡获取。\n");
     }
 

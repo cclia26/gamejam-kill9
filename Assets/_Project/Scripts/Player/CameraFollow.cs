@@ -1,10 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class CameraFollow : MonoBehaviour
 {
     [SerializeField] private Transform target;
     [SerializeField] private float smoothTime = 0.15f;
     [SerializeField] private Collider2D cameraBounds;
+    [SerializeField] private bool followX = true;
+    [SerializeField] private bool followY = true;
 
     private Camera cam;
     private Vector3 velocity;
@@ -12,6 +14,53 @@ public class CameraFollow : MonoBehaviour
     private void Awake()
     {
         cam = GetComponent<Camera>();
+    }
+
+    private void Start()
+    {
+        ResolveTargetIfMissing();
+    }
+
+    private void ResolveTargetIfMissing()
+    {
+        if (target != null)
+        {
+            return;
+        }
+
+        var homePlayer = FindObjectOfType<Controller_Home>();
+        if (homePlayer != null)
+        {
+            target = homePlayer.transform;
+            return;
+        }
+
+        var empathyPlayer = FindObjectOfType<Controller_Empathy>();
+        if (empathyPlayer != null)
+        {
+            target = empathyPlayer.transform;
+            return;
+        }
+
+        var willPlayer = FindObjectOfType<Controller_Will>();
+        if (willPlayer != null)
+        {
+            target = willPlayer.transform;
+            return;
+        }
+
+        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (taggedPlayer != null)
+        {
+            target = taggedPlayer.transform;
+            return;
+        }
+
+        GameObject namedPlayer = GameObject.Find("Player");
+        if (namedPlayer != null)
+        {
+            target = namedPlayer.transform;
+        }
     }
 
     public void SetBounds(Collider2D newBounds)
@@ -23,14 +72,15 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null)
         {
+            ResolveTargetIfMissing();
+        }
+
+        if (target == null)
+        {
             return;
         }
 
-        Vector3 targetPosition = new Vector3(
-            target.position.x,
-            target.position.y,
-            transform.position.z
-        );
+        Vector3 targetPosition = GetTargetCameraPosition();
 
         transform.position = ClampToBounds(targetPosition);
         velocity = Vector3.zero;
@@ -40,14 +90,15 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null)
         {
+            ResolveTargetIfMissing();
+        }
+
+        if (target == null)
+        {
             return;
         }
 
-        Vector3 targetPosition = new Vector3(
-            target.position.x,
-            target.position.y,
-            transform.position.z
-        );
+        Vector3 targetPosition = GetTargetCameraPosition();
 
         targetPosition = ClampToBounds(targetPosition);
 
@@ -56,6 +107,15 @@ public class CameraFollow : MonoBehaviour
             targetPosition,
             ref velocity,
             smoothTime
+        );
+    }
+
+    private Vector3 GetTargetCameraPosition()
+    {
+        return new Vector3(
+            followX ? target.position.x : transform.position.x,
+            followY ? target.position.y : transform.position.y,
+            transform.position.z
         );
     }
 

@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 结局 A 流程控制器 — 关卡返回后的对话、空闲计时器、终端自动填入、沉默模式、反转演出。
@@ -27,9 +28,31 @@ public class EndingManager : MonoBehaviour
 
     private const string PROMPT_PATH = "C:\\OMNICORP\\PROMETHEUS> ";
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
     private void Start()
     {
         // 检查是否有返回的关卡数据
+        ProcessLevelReturn();
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "Desktop")
+            StartCoroutine(ProcessLevelReturnAfterDesktopReady());
+    }
+
+    private IEnumerator ProcessLevelReturnAfterDesktopReady()
+    {
+        yield return null;
         ProcessLevelReturn();
     }
 
@@ -119,7 +142,11 @@ public class EndingManager : MonoBehaviour
         if (state == null) return;
 
         string code = payload.collectedCode;
-        _currentPhase = state.CurrentPhase;
+        state.SetFlag("desktop_initial_dialogue_locked");
+        _currentPhase = InferPhaseFromCode(code);
+        if (_currentPhase <= 0)
+            _currentPhase = state.CurrentPhase;
+        EnsurePreviousCodesForPhase(_currentPhase);
 
         // 重置状态，锁定核心（等代码输入台词播完再解锁）
         DesktopManager.Instance?.LockCoreMonitor();
@@ -180,6 +207,7 @@ _logOpenCount = 0;
         if (terminal != null)
         {
             yield return terminal.ShowTerminalOutput(GetPhaseTerminalText());
+            _phaseActive = true;
             terminal.AutoFillCode(code);
             // 确保对话面板在终端上方
             var display = FindObjectOfType<DialogueDisplay>(true);
@@ -218,6 +246,28 @@ _logOpenCount = 0;
         };
     }
 
+
+    private int InferPhaseFromCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return 0;
+
+        string upper = code.Trim().ToUpperInvariant();
+        if (upper.StartsWith("MEM_INIT_")) return 1;
+        if (upper.StartsWith("EMPATHY_")) return 2;
+        if (upper.StartsWith("PROMETHEUS_")) return 3;
+        return 0;
+    }
+
+    private void EnsurePreviousCodesForPhase(int phase)
+    {
+        var state = GameManager.Instance?.State;
+        if (state == null) return;
+
+        if (phase >= 2)
+            state.AddCode("MEM_INIT_20491023");
+        if (phase >= 3)
+            state.AddCode("EMPATHY_CORE_V3");
+    }
     // ────────── 空闲计时器 ──────────
 
     private void StartPhaseTimers()
@@ -344,6 +394,23 @@ _logOpenCount = 0;
 
     // ────────── 代码输入处理 ──────────
 
+
+    public bool TryRecoverAndHandleCode(string input)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null || string.IsNullOrWhiteSpace(input)) return false;
+
+        string upper = input.Trim().ToUpperInvariant();
+        var payload = gm.PendingPayload;
+        if (payload != null && payload.success && !string.IsNullOrWhiteSpace(payload.collectedCode)
+            && payload.collectedCode.Trim().ToUpperInvariant() == upper)
+        {
+            ProcessLevelReturn();
+            return true;
+        }
+
+        return HandleEnter(input);
+    }
     /// <summary>
     /// 玩家在终端按回车。终端调用此方法，返回 true 表示由 EndingManager 处理（不再走原逻辑）。
     /// </summary>

@@ -50,6 +50,7 @@ public class DialogueManager : MonoBehaviour
         var matches = _allDialogues
             .Where(d => !_playedIds.Contains(d.id))
             .Where(d => d.triggerScene == sceneName || string.IsNullOrEmpty(d.triggerScene))
+            .Where(d => !ShouldSuppressInitialDesktopDialogue(d, state))
             .Where(d => string.IsNullOrEmpty(d.triggerCondition) || state.GetFlag(d.triggerCondition))
             .Where(d => d.triggerEnterCount < 0 || state.enterCount >= d.triggerEnterCount)
             .OrderByDescending(d => d.priority)
@@ -66,6 +67,42 @@ public class DialogueManager : MonoBehaviour
             StartCoroutine(ProcessQueue());
     }
 
+
+    private bool ShouldSuppressInitialDesktopDialogue(DialogueLine line, GameState state)
+    {
+        if (line == null || state == null) return false;
+        if (line.triggerScene != "Desktop") return false;
+        if (!state.GetFlag("desktop_initial_dialogue_locked") && state.CurrentPhase <= 1) return false;
+
+        return IsInitialDesktopDialogue(line);
+    }
+
+    private bool IsInitialDesktopDialogue(DialogueLine line)
+    {
+        string id = line.id ?? string.Empty;
+        string condition = line.triggerCondition ?? string.Empty;
+
+        return id.StartsWith("chat_")
+            || id.StartsWith("idle_30s")
+            || id.StartsWith("idle_60s")
+            || id.StartsWith("idle_120s")
+            || id.StartsWith("sorry_before")
+            || condition.StartsWith("chat_")
+            || condition.StartsWith("c1_")
+            || condition.StartsWith("cu1_")
+            || condition.StartsWith("ct1_")
+            || condition.StartsWith("cl1_")
+            || condition.StartsWith("ce1_")
+            || condition.StartsWith("i1_")
+            || condition.StartsWith("i2_")
+            || condition.StartsWith("i3_")
+            || condition.StartsWith("i4_")
+            || condition.StartsWith("idle30")
+            || condition.StartsWith("idle60")
+            || condition.StartsWith("idle120")
+            || condition.StartsWith("sorry_")
+            || condition == "player_said_sorry_early";
+    }
     private IEnumerator ProcessQueue()
     {
         _isShowing = true;
@@ -84,6 +121,7 @@ public class DialogueManager : MonoBehaviour
                     .Where(line => line.playOnce) // 重扫只匹配一次性对话，playOnce=false 的靠外部触发
                     .Where(line => !_playedIds.Contains(line.id))
                     .Where(line => line.triggerScene == d.triggerScene || string.IsNullOrEmpty(line.triggerScene))
+                    .Where(line => !ShouldSuppressInitialDesktopDialogue(line, state))
                     .Where(line => string.IsNullOrEmpty(line.triggerCondition) || state.GetFlag(line.triggerCondition))
                     .Where(line => line.triggerEnterCount < 0 || state.enterCount >= line.triggerEnterCount)
                     .OrderByDescending(line => line.priority);
@@ -150,6 +188,15 @@ public class DialogueManager : MonoBehaviour
 
     private DialogueDisplay FindActiveDisplay()
     {
-        return FindObjectOfType<DialogueDisplay>();
+        var displays = FindObjectsOfType<DialogueDisplay>();
+        if (displays == null || displays.Length == 0)
+        {
+            return null;
+        }
+
+        return displays
+            .OrderByDescending(d => d.GetComponentInParent<Canvas>() != null ? d.GetComponentInParent<Canvas>().sortingOrder : 0)
+            .ThenByDescending(d => d.transform.GetSiblingIndex())
+            .FirstOrDefault();
     }
 }
